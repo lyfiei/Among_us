@@ -50,22 +50,30 @@ public class Player {
         view.setY(y);
     }
 
-    // 脚底多点碰撞检测
+    // 脚底多点碰撞检测（更宽松）
     private boolean isValidPosition(double x, double y) {
-        int steps = 5; // 底部一条线分5个点检测
-        int threshold = 240;
+        int steps = 3; // 底部检测点数量
+        int threshold = 200; // 颜色阈值，越小越宽松
+        int offsetY = 2; // 脚底往上收缩，避免卡住
+
         for (int i = 0; i <= steps; i++) {
             int checkX = (int)(x + i * GameConstants.PLAYER_SIZE / steps);
-            int checkY = (int)(y + GameConstants.PLAYER_SIZE);
-            if (checkX < 0 || checkX >= GameConstants.MAP_WIDTH || checkY < 0 || checkY >= GameConstants.MAP_HEIGHT) {
+            int checkY = (int)(y + GameConstants.PLAYER_SIZE - offsetY);
+
+            // 越界就不能走
+            if (checkX < 0 || checkX >= GameConstants.MAP_WIDTH ||
+                    checkY < 0 || checkY >= GameConstants.MAP_HEIGHT) {
                 return false;
             }
+
             int argb = collisionReader.getArgb(checkX, checkY);
             int r = (argb >> 16) & 0xFF;
             int g = (argb >> 8) & 0xFF;
             int b = argb & 0xFF;
+
             if (r < threshold || g < threshold || b < threshold) return false;
         }
         return true;
     }
+
 }
