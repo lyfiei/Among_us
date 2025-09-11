@@ -16,8 +16,7 @@
     <!-- 背景图 -->
     <children>
         <ImageView fx:id="background" fitWidth="600.0" fitHeight="400.0"
-                   preserveRatio="true" pickOnBounds="true"
-                   image="@/image/Fix_Wiring.jpg"/>
+                   preserveRatio="true" pickOnBounds="true"/>
 
 
         <!-- 左边插口 -->
