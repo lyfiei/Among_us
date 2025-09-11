@@ -37,6 +37,13 @@ public class Player {
             y = newY;
             updateView();
 
+            // 朝向控制：水平翻转
+            if (dx > 0) {
+                view.setScaleX(-1); // 向右 → 翻转
+            } else if (dx < 0) {
+                view.setScaleX(1);  // 向左 → 正常
+            }
+
 //            // 根据移动方向旋转玩家
 //            if (dx > 0) view.setRotate(90);      // 向右
 //            else if (dx < 0) view.setRotate(270); // 向左
