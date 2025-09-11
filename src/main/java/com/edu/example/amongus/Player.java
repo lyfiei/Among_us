@@ -24,21 +24,24 @@ public class Player {
         return view;
     }
 
-    public double getX() {
-        return x;
-    }
-
-    public double getY() {
-        return y;
-    }
+    public double getX() { return x; }
+    public double getY() { return y; }
 
     public void move(double dx, double dy) {
         double newX = x + dx;
         double newY = y + dy;
+
+        // 碰撞检测
         if (isValidPosition(newX, newY)) {
             x = newX;
             y = newY;
             updateView();
+
+//            // 根据移动方向旋转玩家
+//            if (dx > 0) view.setRotate(90);      // 向右
+//            else if (dx < 0) view.setRotate(270); // 向左
+//            else if (dy > 0) view.setRotate(180); // 向下
+//            else if (dy < 0) view.setRotate(0);   // 向上
         }
     }
 
@@ -47,9 +50,9 @@ public class Player {
         view.setY(y);
     }
 
-    // 脚底碰撞检测
+    // 脚底多点碰撞检测
     private boolean isValidPosition(double x, double y) {
-        int steps = 5; // 检测底部一条线的几个点
+        int steps = 5; // 底部一条线分5个点检测
         int threshold = 240;
         for (int i = 0; i <= steps; i++) {
             int checkX = (int)(x + i * GameConstants.PLAYER_SIZE / steps);
@@ -66,4 +69,3 @@ public class Player {
         return true;
     }
 }
-

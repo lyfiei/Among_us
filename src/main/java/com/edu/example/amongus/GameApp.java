@@ -17,12 +17,12 @@ public class GameApp {
         this.inputHandler = new InputHandler();
 
         try {
-            Image mapImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/game_map.png"));
-            Image collisionImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/collision_map.png"));
-            Image playerImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/player.png"));
+            Image mapImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/map1.png"));
+            Image collisionImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/map2.jpg"));
+            Image playerImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/green.png"));
 
             gameMap = new Map(mapImage, collisionImage);
-            player = new Player(100, 100, playerImage, gameMap.getCollisionReader());
+            player = new Player(1650, 500, playerImage, gameMap.getCollisionReader());
 
             gamePane.getChildren().add(gameMap.getMapView());
             gamePane.getChildren().add(player.getView());
@@ -41,11 +41,25 @@ public class GameApp {
             @Override
             public void handle(long now) {
                 double dx = 0, dy = 0;
+
                 if (inputHandler.isPressed(KeyCode.UP)) dy -= GameConstants.MOVEMENT_SPEED;
                 if (inputHandler.isPressed(KeyCode.DOWN)) dy += GameConstants.MOVEMENT_SPEED;
                 if (inputHandler.isPressed(KeyCode.LEFT)) dx -= GameConstants.MOVEMENT_SPEED;
                 if (inputHandler.isPressed(KeyCode.RIGHT)) dx += GameConstants.MOVEMENT_SPEED;
+
+                // 斜向移动时保持速度一致
+                if (dx != 0 && dy != 0) {
+                    dx /= Math.sqrt(2);
+                    dy /= Math.sqrt(2);
+                }
+
                 player.move(dx, dy);
+
+                // 计算旋转角度
+//                if (dx != 0 || dy != 0) {
+//                    double angle = Math.toDegrees(Math.atan2(dy, dx));
+//                    player.getView().setRotate(angle + 90); // +90 让图片朝向正上
+//                }
 
                 // 摄像机跟随玩家
                 double offsetX = -player.getX() + scene.getWidth() / 2 - GameConstants.PLAYER_SIZE / 2;
