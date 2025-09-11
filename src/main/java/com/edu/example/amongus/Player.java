@@ -44,11 +44,6 @@ public class Player {
                 view.setScaleX(1);  // 向左 → 正常
             }
 
-//            // 根据移动方向旋转玩家
-//            if (dx > 0) view.setRotate(90);      // 向右
-//            else if (dx < 0) view.setRotate(270); // 向左
-//            else if (dy > 0) view.setRotate(180); // 向下
-//            else if (dy < 0) view.setRotate(0);   // 向上
         }
     }
 
