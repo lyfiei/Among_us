@@ -1,6 +1,5 @@
-package com.edu.example.amongus;
+package com.edu.example.amongus.task;
 
-import com.edu.example.amongus.FixWiring;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.image.Image;
@@ -37,38 +36,31 @@ public class FixWiringController {
     private Circle[] leftCircles;
     private Circle[] rightCircles;
 
+    public void setLogic(FixWiring logic) {
+        this.logic = logic;
+    }
+
     @FXML
     public void initialize() {
-        logic = new FixWiring();
 
-        Image bgImage = new Image(getClass().getResource("/com/edu/example/among_us/image/Fix_Wiring(1).png").toExternalForm());
+        Image bgImage = new Image(getClass().getResource("/com/edu/example/amongus/images/Fix_Wiring.png").toExternalForm());
         background.setImage(bgImage);
 
-        // 直接使用原始图片大小
-        background.setFitWidth(bgImage.getWidth());
-        background.setFitHeight(bgImage.getHeight());
+//        background.setFitWidth(bgImage.getWidth());
+//        background.setFitHeight(bgImage.getHeight());
+//        root.setPrefWidth(bgImage.getWidth());
+//        root.setPrefHeight(bgImage.getHeight());
 
-        // AnchorPane 跟随图片大小
-        root.setPrefWidth(bgImage.getWidth());
-        root.setPrefHeight(bgImage.getHeight());
-
+//        // 直接使用原始图片大小
+//        background.setFitWidth(bgImage.getWidth());
+//        background.setFitHeight(bgImage.getHeight());
+//
+//        // AnchorPane 跟随图片大小
+//        root.setPrefWidth(bgImage.getWidth());
+//        root.setPrefHeight(bgImage.getHeight());
+//
         leftCircles = new Circle[]{left1, left2, left3, left4};
         rightCircles = new Circle[]{right1, right2, right3, right4};
-
-        // 设置右边固定颜色
-        Color[] fixedColors = logic.getFixedColors();
-        for (int i = 0; i < rightCircles.length; i++) {
-            rightCircles[i].setFill(fixedColors[i]);
-        }
-
-
-        //我服了。这时候stage还没渲染，所有给我加载覆盖掉了
-        Platform.runLater(() -> {
-            List<Color> shuffled = logic.getShuffledColors();
-            for (int i = 0; i < leftCircles.length; i++) {
-                leftCircles[i].setFill(shuffled.get(i));
-            }
-        });
 
 
         // 给每个左圆绑定拖线事件
@@ -85,10 +77,25 @@ public class FixWiringController {
         }
 
         root.setOnMouseReleased(event -> releaseLine(event));
-
-
     }
 
+    public void initData(FixWiring logic) {
+        this.logic = logic;
+        // 设置右边固定颜色
+        Color[] fixedColors = logic.getFixedColors();
+        for (int i = 0; i < rightCircles.length; i++) {
+            rightCircles[i].setFill(fixedColors[i]);
+        }
+
+
+        //我服了。这时候stage还没渲染，所有给我加载覆盖掉了
+        Platform.runLater(() -> {
+            List<Color> shuffled = logic.getShuffledColors();
+            for (int i = 0; i < leftCircles.length; i++) {
+                leftCircles[i].setFill(shuffled.get(i));
+            }
+        });
+    }
 
     //可以开始拖线事件
     private void startLine(MouseEvent event) {
@@ -154,6 +161,13 @@ public class FixWiringController {
         currentLine = null;
         currentLeft = null;
 
+    }
+
+    public Image getBackgroundImage() {
+        if (background != null) {
+            return background.getImage();
+        }
+        return null; // 如果还没加载，就返回 null
     }
 }
 
