@@ -12,6 +12,9 @@ public class GameApp {
     private final Map gameMap;
     private final InputHandler inputHandler;
 
+    private CardSwipeTask cardTask; // 刷卡任务
+    private boolean taskActive = false; // 是否正在进行任务
+
     public GameApp(Pane pane) {
         this.gamePane = pane;
         this.inputHandler = new InputHandler();
@@ -26,6 +29,17 @@ public class GameApp {
 
             gamePane.getChildren().add(gameMap.getMapView());
             gamePane.getChildren().add(player.getView());
+// 初始化刷卡任务
+            cardTask = new CardSwipeTask(gamePane);
+            cardTask.setTaskCompleteListener(success -> {
+                System.out.println("刷卡完成，成功=" + success);
+                // success 是回调传入的 boolean，不需要自己再定义
+                if (success) {
+                    // TODO: 游戏内任务完成逻辑
+                } else {
+                    // TODO: 刷卡失败逻辑
+                }
+            });
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -34,7 +48,16 @@ public class GameApp {
     }
 
     public void handleInput(Scene scene) {
-        scene.setOnKeyPressed(e -> inputHandler.press(e.getCode()));
+        scene.setOnKeyPressed(e -> {
+            inputHandler.press(e.getCode());
+
+            // 按 T 打开刷卡任务
+            if (e.getCode() == KeyCode.T && !taskActive) {
+                taskActive = true;
+                cardTask.start();
+            }
+        });
+
         scene.setOnKeyReleased(e -> inputHandler.release(e.getCode()));
 
         AnimationTimer timer = new AnimationTimer() {
@@ -54,12 +77,6 @@ public class GameApp {
                 }
 
                 player.move(dx, dy);
-
-                // 计算旋转角度
-//                if (dx != 0 || dy != 0) {
-//                    double angle = Math.toDegrees(Math.atan2(dy, dx));
-//                    player.getView().setRotate(angle + 90); // +90 让图片朝向正上
-//                }
 
                 // 摄像机跟随玩家
                 double offsetX = -player.getX() + scene.getWidth() / 2 - GameConstants.PLAYER_SIZE / 2;
