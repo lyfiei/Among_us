@@ -9,9 +9,12 @@ import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.stage.Stage;
 
-public class DownloadTask {
+public class DownloadTask implements Task {
     private final Stage stage;
     private MediaPlayer mediaPlayer;
+    private boolean active = false;      // 是否正在进行
+    private boolean completed = false;   // 是否完成
+    private TaskCompleteListener listener;
 
     public DownloadTask() {
         stage = new Stage();
@@ -52,6 +55,9 @@ public class DownloadTask {
             mediaView.setVisible(true);
             mediaPlayer.stop(); // 保证可以多次点击播放
             mediaPlayer.play();
+
+            // 播放完成后标记任务完成
+            mediaPlayer.setOnEndOfMedia(() -> complete());
         });
 
         Scene scene = new Scene(root);
@@ -59,7 +65,34 @@ public class DownloadTask {
         stage.setTitle("下载任务");
     }
 
+    @Override
     public void start() {
+        if (active || completed) return; // 已经在做或完成就不再重复开启
+        active = true;
+        completed = false;
         stage.show();
+    }
+
+    @Override
+    public void complete() {
+        active = false;
+        completed = true;
+        stage.close();
+        if (listener != null) listener.onTaskComplete(true);
+    }
+
+    @Override
+    public boolean isActive() {
+        return active;
+    }
+
+    @Override
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    @Override
+    public void setTaskCompleteListener(TaskCompleteListener listener) {
+        this.listener = listener;
     }
 }

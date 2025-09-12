@@ -5,10 +5,10 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 
 public class Player {
-    private double x;
+    private double x;// 玩家X坐标
     private double y;
-    private final ImageView view;
-    private final PixelReader collisionReader;
+    private final ImageView view;// 玩家视图
+    private final PixelReader collisionReader;// 地图碰撞像素读取器
 
     public Player(double startX, double startY, Image playerImage, PixelReader collisionReader) {
         this.x = startX;
