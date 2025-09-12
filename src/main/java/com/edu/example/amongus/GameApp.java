@@ -56,6 +56,9 @@ public class GameApp {
                 taskActive = true;
                 cardTask.start();
             }
+            if (e.getCode() == KeyCode.F) {
+                new DownloadTask().start();
+            }
         });
 
         scene.setOnKeyReleased(e -> inputHandler.release(e.getCode()));
