@@ -91,6 +91,9 @@ public class GameApp {
             if (e.getCode() == KeyCode.T) {
                 // TODO: 触发任务面板
             }
+            if (e.getCode() == KeyCode.F) {
+                new DownloadTask().start();
+            }
         });
         scene.setOnKeyReleased(e -> inputHandler.release(e.getCode()));
 
