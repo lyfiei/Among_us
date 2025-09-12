@@ -1,5 +1,6 @@
 package com.edu.example.amongus.ui;
 
+import com.edu.example.amongus.Main;
 import com.edu.example.amongus.logic.GameConfig;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
@@ -47,8 +48,10 @@ public class StartMenuController {
         System.out.println("玩家昵称: " + playerName);
         System.out.println("选择皮肤: " + skinColor);
 
-        // TODO: 把玩家名称 & 皮肤传递给 GameApp / GameClient
+        // 切换到游戏界面
+        Main.startGame();
     }
+
 
     private void updateCharacter() {
         String color = colors[currentIndex];

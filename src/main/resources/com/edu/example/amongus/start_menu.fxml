@@ -13,8 +13,8 @@
       <Button layoutX="450.0" layoutY="14.0" mnemonicParsing="false" prefHeight="23.0" prefWidth="64.0" text="制作人员" />
       <AnchorPane layoutX="14.0" layoutY="68.0" prefHeight="320.0" prefWidth="172.0">
          <children>
-            <TextField layoutX="75.0" layoutY="28.0" prefHeight="23.0" prefWidth="91.0" />
-            <ImageView fitHeight="150.0" fitWidth="110.0" layoutX="31.0" layoutY="96.0" pickOnBounds="true" preserveRatio="true" />
+            <TextField fx:id="nameField" layoutX="75.0" layoutY="28.0" prefHeight="23.0" prefWidth="91.0" />
+            <ImageView fx:id="characterView" fitHeight="150.0" fitWidth="110.0" layoutX="31.0" layoutY="96.0" pickOnBounds="true" preserveRatio="true" />
             <Button layoutX="4.0" layoutY="160.0" mnemonicParsing="false" prefHeight="23.0" prefWidth="9.0" text="&lt;" onAction="#onPrev"/>
             <Button layoutX="146.0" layoutY="160.0" mnemonicParsing="false" prefHeight="23.0" prefWidth="9.0" text="&gt;" onAction="#onNext"/>
             <Button layoutX="59.0" layoutY="259.0" mnemonicParsing="false" text="开始游戏" onAction="#onStart"/>
