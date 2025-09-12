@@ -2,6 +2,9 @@ package com.edu.example.amongus;
 
 import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
+import com.edu.example.amongus.task.CardSwipeTask;
+import com.edu.example.amongus.task.DownloadTask;
+import com.edu.example.amongus.task.TaskManager;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.scene.Scene;

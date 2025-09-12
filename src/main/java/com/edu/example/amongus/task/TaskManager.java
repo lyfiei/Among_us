@@ -1,4 +1,4 @@
-package com.edu.example.amongus;
+package com.edu.example.amongus.task;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.edu.example.amongus;
+package com.edu.example.amongus.task;
 
 public interface Task {
     void start();                     // 开始任务

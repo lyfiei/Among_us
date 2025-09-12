@@ -1,6 +1,5 @@
-package com.edu.example.amongus;
+package com.edu.example.amongus.task;
 
-import com.edu.example.amongus.FixWiring;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.image.Image;

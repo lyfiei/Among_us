@@ -1,4 +1,4 @@
-package com.edu.example.amongus;
+package com.edu.example.amongus.task;
 
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
