@@ -1,5 +1,6 @@
 package com.edu.example.amongus;
 
+import com.edu.example.amongus.logic.GameConfig;
 import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
 import javafx.animation.AnimationTimer;
@@ -26,8 +27,8 @@ public class GameApp {
     // 网络
     private GameClient client;
     private final String myId;
-    private final String myNick;
-    private final String myColor = "green"; // 临时颜色，后面做选择界面
+    private  String myNick;
+    private  String myColor;
 
     // 远端玩家: id -> RemotePlayer （注意使用 java.util.Map，避免与 Mapp 冲突）
     private final Map<String, RemotePlayer> remotePlayers = new HashMap<>();
@@ -38,12 +39,22 @@ public class GameApp {
 
         // 生成 id 和昵称（后面可以替换为用户输入）
         this.myId = UUID.randomUUID().toString();
-        this.myNick = "P" + myId.substring(0, 4);
+        this.myNick = GameConfig.getPlayerName();
+        if (this.myNick == null || this.myNick.isEmpty()) {
+            this.myNick = "P" + myId.substring(0, 4);
+        }
+
+        this.myColor = GameConfig.getPlayerColor();
+        if (this.myColor == null) {
+            this.myColor = "green";
+        }
 
         try {
             Image mapImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/map1.png"));
             Image collisionImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/map2.jpg"));
-            Image playerImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/green.png"));
+            Image playerImage = new Image(
+                    getClass().getResourceAsStream("/com/edu/example/amongus/images/" + myColor + ".png")
+            );
 
             gameMap = new Mapp(mapImage, collisionImage);
             player = new Player(1650, 500, playerImage, gameMap.getCollisionReader());

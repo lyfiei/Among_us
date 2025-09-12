@@ -1,22 +1,40 @@
 package com.edu.example.amongus;
 
 import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 
 public class Main extends Application {
+    private static Stage primaryStage;
+
     @Override
-    public void start(Stage primaryStage) {
-        Pane root = new Pane();
-        Scene scene = new Scene(root, 800, 600); // 窗口大小
+    public void start(Stage stage) throws Exception {
+        primaryStage = stage;
 
-        GameApp game = new GameApp(root);
-        game.handleInput(scene);
+        // 先加载 StartMenu.fxml
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/edu/example/amongus/start_menu.fxml"));
+        Scene startScene = new Scene(loader.load(), 800, 600);
 
-        primaryStage.setTitle("Among Us Demo");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        stage.setTitle("Among Us Demo");
+        stage.setScene(startScene);
+        stage.show();
+    }
+
+    /** 切换到游戏场景 */
+    public static void startGame() {
+        try {
+            Pane root = new Pane();
+            GameApp game = new GameApp(root);
+
+            Scene gameScene = new Scene(root, 800, 600);
+            game.handleInput(gameScene);
+
+            primaryStage.setScene(gameScene);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static void main(String[] args) {
