@@ -1,35 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.image.*?>
+<?import javafx.scene.shape.*?>
 <?import java.lang.*?>
 <?import java.util.*?>
 <?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.shape.Circle?>
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="com.edu.example.among_us.FixWiringController"
-            fx:id="root"
-            prefHeight="400.0" prefWidth="600.0">
+
+<AnchorPane fx:id="root" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.edu.example.among_us.FixWiringController">
     <!-- 背景图 -->
     <children>
-        <ImageView fx:id="background" fitWidth="600.0" fitHeight="400.0"
-                   preserveRatio="true" pickOnBounds="true"/>
-
+        <ImageView fx:id="background" preserveRatio="true" >
+            <image>
+                <Image url="@image/Fix_Wiring(1).png" />
+            </image>
+        </ImageView>
 
         <!-- 左边插口 -->
-        <Circle fx:id="left1" layoutX="80.0" layoutY="80.0" radius="15.0" style="-fx-fill: red;"/>
-        <Circle fx:id="left2" layoutX="80.0" layoutY="160.0" radius="15.0" style="-fx-fill: blue;"/>
-        <Circle fx:id="left3" layoutX="80.0" layoutY="240.0" radius="15.0" style="-fx-fill: green;"/>
-        <Circle fx:id="left4" layoutX="80.0" layoutY="320.0" radius="15.0" style="-fx-fill: yellow;"/>
+        <Circle fx:id="left1" layoutX="71.0" layoutY="190.0" radius="15.0" style="-fx-fill: red;" />
+        <Circle fx:id="left2" layoutX="71.0" layoutY="383.0" radius="15.0" style="-fx-fill: blue;" />
+        <Circle fx:id="left3" layoutX="71.0" layoutY="580.0" radius="15.0" style="-fx-fill: green;" />
+        <Circle fx:id="left4" layoutX="71.0" layoutY="772.0" radius="15.0" style="-fx-fill: yellow;" />
 
         <!-- 右边插口 -->
-        <Circle fx:id="right1" layoutX="520.0" layoutY="80.0" radius="15.0" style="-fx-fill: red;"/>
-        <Circle fx:id="right2" layoutX="520.0" layoutY="160.0" radius="15.0" style="-fx-fill: blue;"/>
-        <Circle fx:id="right3" layoutX="520.0" layoutY="240.0" radius="15.0" style="-fx-fill: green;"/>
-        <Circle fx:id="right4" layoutX="520.0" layoutY="320.0" radius="15.0" style="-fx-fill: yellow;"/>
+        <Circle fx:id="right1" layoutX="832.0" layoutY="190.0" radius="15.0" style="-fx-fill: red;" />
+        <Circle fx:id="right2" layoutX="825.0" layoutY="383.0" radius="15.0" style="-fx-fill: blue;" />
+        <Circle fx:id="right3" layoutX="825.0" layoutY="580.0" radius="15.0" style="-fx-fill: green;" />
+        <Circle fx:id="right4" layoutX="825.0" layoutY="772.0" radius="15.0" style="-fx-fill: yellow;" />
     </children>
 
 </AnchorPane>

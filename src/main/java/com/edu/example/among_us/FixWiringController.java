@@ -5,12 +5,12 @@ import javafx.fxml.FXML;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
+import javafx.stage.Stage;
 
-import java.net.URL;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +19,8 @@ import java.util.Map;
 public class FixWiringController {
 
     @FXML private AnchorPane root;
+    @FXML
+    private ImageView background;
 
     @FXML private Circle left1, left2, left3, left4;
     @FXML private Circle right1, right2, right3, right4;
@@ -38,17 +40,38 @@ public class FixWiringController {
     public void initialize() {
         logic = new FixWiring();
 
-        // 加载背景图
-        Image bgImage = new Image(getClass().getResource("/image/Fix_Wiring.jpg").toExternalForm());
-        ImageView background = new ImageView(bgImage);
+        Image bgImage = new Image(getClass().getResource("/com/edu/example/among_us/image/Fix_Wiring(1).png").toExternalForm());
+        background.setImage(bgImage);
 
-// 设置大小填满窗口
-        background.fitWidthProperty().bind(root.widthProperty());
-        background.fitHeightProperty().bind(root.heightProperty());
-        background.setPreserveRatio(false);
+        // 直接使用原始图片大小
+        background.setFitWidth(bgImage.getWidth());
+        background.setFitHeight(bgImage.getHeight());
 
-// 添加到 root，放到最底层
-        root.getChildren().add(0, background);
+        // AnchorPane 跟随图片大小
+        root.setPrefWidth(bgImage.getWidth());
+        root.setPrefHeight(bgImage.getHeight());
+
+////        // 加载背景图
+//        Image bgImage = new Image(getClass().getResource("/com/edu/example/among_us/image/Fix_Wiring(1).png").toExternalForm());
+//        ImageView background = new ImageView(bgImage);
+//
+//// 设置大小填满窗口
+//        background.fitWidthProperty().bind(root.widthProperty());
+//        background.fitHeightProperty().bind(root.heightProperty());
+//        background.setPreserveRatio(false);
+//
+//// 添加到 root，放到最底层
+//        root.getChildren().add(0, background);
+
+//        BackgroundImage myBI = new BackgroundImage(
+//                new Image(getClass().getResource("/com/edu/example/among_us/image/Fix_Wiring(1).png").toExternalForm(),
+//                        0, 0, true, true), // true,true 保持比例
+//                BackgroundRepeat.NO_REPEAT,
+//                BackgroundRepeat.NO_REPEAT,
+//                BackgroundPosition.CENTER,
+//                BackgroundSize.DEFAULT);
+//
+//        root.setBackground(new Background(myBI));
 
 
 
@@ -106,6 +129,11 @@ public class FixWiringController {
         currentLine.setStartY(currentLeft.getLayoutY());
         currentLine.setEndX(currentLeft.getLayoutX());
         currentLine.setEndY(currentLeft.getLayoutY());
+
+        // 线条颜色跟随左圆的颜色
+        currentLine.setStroke(currentLeft.getFill());
+        currentLine.setStrokeWidth(20); // 线条粗细可以调
+
         root.getChildren().add(currentLine);
     }
 
@@ -137,6 +165,8 @@ public class FixWiringController {
 
                     if (connected.size() == leftCircles.length) {
                         System.out.println("任务完成！");
+                        Stage stage = (Stage) root.getScene().getWindow();
+                        stage.close();   // 关闭窗口
                     }
 
                     return;
@@ -146,6 +176,7 @@ public class FixWiringController {
         root.getChildren().remove(currentLine);
         currentLine = null;
         currentLeft = null;
+
     }
 }
 

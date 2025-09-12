@@ -2,6 +2,7 @@ package com.edu.example.among_us;
 
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Bounds;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
@@ -16,21 +17,8 @@ import java.util.List;
 public class FixWiring {
         private boolean completed = false;
         private List<Integer>index =Arrays.asList(0,1,2,3);
-        //游戏开始
-        public void start() {
 
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com.edu.example.among_us/fixWiring.fxml"));
-                Scene scene = new Scene(loader.load());
-                Stage stage = new Stage();
-                stage.setTitle("Fix Wiring");
-                stage.setScene(scene);
-                stage.show();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        //判断游戏是否结束
+    //判断游戏是否结束
         public boolean isCompleted() {
             return completed;
         }
@@ -52,8 +40,6 @@ public class FixWiring {
         for (int i = 0; i < index.size(); i++) {
             leftColors.add(colors.get(index.get(i)));
         }
-//        System.out.println("index: " + index);
-//        System.out.println("leftColors: " + leftColors);
         return leftColors;
     }
 
