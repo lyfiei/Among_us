@@ -5,28 +5,42 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 
-public class CardSwipeTask {
+public class CardSwipeTask implements Task {  // ✅ 实现 Task 接口
     private final Pane root;
     private ImageView card;
     private double startX;
     private long startTime;
     private Pane overlayPane;
 
-    // 回调接口
-    public interface TaskCompleteListener {
-        void onComplete(boolean success);
-    }
+    private boolean completed = false;
+    private boolean active = false;
+
     private TaskCompleteListener listener;
 
     public CardSwipeTask(Pane root) {
         this.root = root;
     }
 
+    @Override
     public void setTaskCompleteListener(TaskCompleteListener listener) {
         this.listener = listener;
     }
 
+    @Override
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    @Override
+    public boolean isActive() {
+        return active;
+    }
+
+    @Override
     public void start() {
+        if (active || completed) return;  // 任务已激活或完成就不启动
+        active = true;
+
         overlayPane = new Pane();
         overlayPane.setPrefSize(root.getWidth(), root.getHeight());
 
@@ -57,6 +71,7 @@ public class CardSwipeTask {
         resultLabel.setLayoutY(700);
 
         overlayPane.getChildren().addAll(machine, card, frontCover, resultLabel);
+        root.getChildren().add(overlayPane);
 
         double cardMinX = machine.getX() + 20;
         double cardMaxX = machine.getX() + machine.getFitWidth() - card.getFitWidth() - 20;
@@ -81,16 +96,21 @@ public class CardSwipeTask {
             boolean success = distance > 150 && speed > 0.3 && speed < 1.5;
             resultLabel.setText(success ? "✅ 刷卡成功！" : "❌ 刷卡失败");
 
-            // 回调
-            if (listener != null) listener.onComplete(success);
+            active = false;
+            completed = success;  // 更新完成状态
 
-            // 回到起点
-            card.setX(cardMinX);
+            if (listener != null) listener.onTaskComplete(success); // ✅ 回调给 TaskManager
 
-            // 移除覆盖层
+            card.setX(cardMinX);  // 回到起点
             root.getChildren().remove(overlayPane);
         });
+    }
 
-        root.getChildren().add(overlayPane);
+    @Override
+    public void complete() { // 可以被 TaskManager 手动完成
+        active = false;
+        completed = true;
+        if (overlayPane != null) root.getChildren().remove(overlayPane);
+        if (listener != null) listener.onTaskComplete(true);
     }
 }

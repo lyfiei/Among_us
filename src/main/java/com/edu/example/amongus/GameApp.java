@@ -11,13 +11,15 @@ public class GameApp {
     private final Player player;
     private final Map gameMap;
     private final InputHandler inputHandler;
+    private final TaskManager taskManager;
 
-    private CardSwipeTask cardTask; // 刷卡任务
-    private boolean taskActive = false; // 是否正在进行任务
+    private CardSwipeTask cardTask;
+    private DownloadTask downloadTask;
 
     public GameApp(Pane pane) {
         this.gamePane = pane;
         this.inputHandler = new InputHandler();
+        this.taskManager = new TaskManager();
 
         try {
             Image mapImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/map1.png"));
@@ -29,17 +31,16 @@ public class GameApp {
 
             gamePane.getChildren().add(gameMap.getMapView());
             gamePane.getChildren().add(player.getView());
-// 初始化刷卡任务
+
+            // 初始化任务
             cardTask = new CardSwipeTask(gamePane);
             cardTask.setTaskCompleteListener(success -> {
                 System.out.println("刷卡完成，成功=" + success);
-                // success 是回调传入的 boolean，不需要自己再定义
-                if (success) {
-                    // TODO: 游戏内任务完成逻辑
-                } else {
-                    // TODO: 刷卡失败逻辑
-                }
             });
+            taskManager.addTask(cardTask);
+
+            downloadTask = new DownloadTask();
+            taskManager.addTask(downloadTask);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -51,13 +52,12 @@ public class GameApp {
         scene.setOnKeyPressed(e -> {
             inputHandler.press(e.getCode());
 
-            // 按 T 打开刷卡任务
-            if (e.getCode() == KeyCode.T && !taskActive) {
-                taskActive = true;
+            // 保留原来的按键触发
+            if (e.getCode() == KeyCode.T && !cardTask.isActive()) {
                 cardTask.start();
             }
-            if (e.getCode() == KeyCode.F) {
-                new DownloadTask().start();
+            if (e.getCode() == KeyCode.F && !downloadTask.isActive()) {
+                downloadTask.start();
             }
         });
 
@@ -73,7 +73,6 @@ public class GameApp {
                 if (inputHandler.isPressed(KeyCode.LEFT)) dx -= GameConstants.MOVEMENT_SPEED;
                 if (inputHandler.isPressed(KeyCode.RIGHT)) dx += GameConstants.MOVEMENT_SPEED;
 
-                // 斜向移动时保持速度一致
                 if (dx != 0 && dy != 0) {
                     dx /= Math.sqrt(2);
                     dy /= Math.sqrt(2);
@@ -81,15 +80,21 @@ public class GameApp {
 
                 player.move(dx, dy);
 
-                // 摄像机跟随玩家
                 double offsetX = -player.getX() + scene.getWidth() / 2 - GameConstants.PLAYER_SIZE / 2;
                 double offsetY = -player.getY() + scene.getHeight() / 2 - GameConstants.PLAYER_SIZE / 2;
                 gameMap.getMapView().setX(offsetX);
                 gameMap.getMapView().setY(offsetY);
                 player.getView().setX(player.getX() + offsetX);
                 player.getView().setY(player.getY() + offsetY);
+
+                // 暂时空着的位置触发
+                taskManager.checkTasks(player.getX(), player.getY());
             }
         };
         timer.start();
+    }
+
+    public boolean allTasksCompleted() {
+        return taskManager.allCompleted();
     }
 }
