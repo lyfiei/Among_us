@@ -1,28 +1,44 @@
 package com.edu.example.amongus.net;
 
+import com.edu.example.amongus.PlayerStatus;
 import com.edu.example.amongus.logic.GameState;
 import com.edu.example.amongus.logic.PlayerInfo;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 简单的多人服务器（阻塞IO + 每连接一个线程）
- * 用于学习与小组项目原型（局域网）。
+ * 多人服务器（阻塞IO，每连接一个线程）——增加了“会议（讨论+投票）”流程支持
+ *
+ * 协议（摘要）：
+ * - JOIN: 客户端加入（payload: id, nick, color, x, y）
+ * - MOVE: 客户位移广播（payload: id, x, y）
+ * - CHAT: 聊天广播（payload: id, msg）
+ * - REPORT: 有人举报/开会（payload: id [可选]）
+ * - MEETING_DISCUSSION_START: 服务器 -> 客户（payload: duration）
+ * - MEETING_VOTE_START: 服务器 -> 客户（payload: duration）
+ * - VOTE: 客户 -> 服务器（payload: voter, target）
+ * - VOTE_UPDATE: 服务器 -> 客户（每收到一票时广播）
+ * - VOTE_RESULT: 服务器 -> 客户（payload: votedOut, optional: counts...）
+ * - DEAD: 服务器 -> 客户（payload: id）  ✅ 新增，通知某个玩家出局
  */
 public class GameServer {
     private final int port;
     private ServerSocket serverSocket;
-    // 线程安全保存每个 client handler
+
     private final List<ClientHandler> clients = Collections.synchronizedList(new ArrayList<>());
     private final GameState gameState = new GameState();
 
-    public GameServer(int port) {
-        this.port = port;
-    }
+    private volatile boolean meetingActive = false;
+    private volatile boolean inVotePhase = false;
+
+    private final Map<String, String> currentVotes = new ConcurrentHashMap<>();
+
+    public GameServer(int port) { this.port = port; }
 
     public void start() throws IOException {
         serverSocket = new ServerSocket(port);
@@ -35,7 +51,6 @@ public class GameServer {
         }
     }
 
-    //将原始字符串 raw 广播给所有已连接客户端。
     private void broadcastRaw(String raw) {
         synchronized (clients) {
             Iterator<ClientHandler> it = clients.iterator();
@@ -44,7 +59,6 @@ public class GameServer {
                 try {
                     ch.sendRaw(raw);
                 } catch (IOException e) {
-                    // 客户端断开则移除
                     System.out.println("Remove client " + ch.playerId);
                     gameState.removePlayer(ch.playerId);
                     it.remove();
@@ -53,7 +67,103 @@ public class GameServer {
         }
     }
 
-    //每个客户端对应一个 ClientHandler
+    // ✅ 结算投票结果
+    private synchronized void finalizeMeeting() {
+        Map<String, Integer> tally = new HashMap<>();
+        for (String target : currentVotes.values()) {
+            if (target == null || target.isEmpty()) continue;
+            tally.put(target, tally.getOrDefault(target, 0) + 1);
+        }
+
+        int maxVotes = 0;
+        String votedOut = null;
+        for (var entry : tally.entrySet()) {
+            int v = entry.getValue();
+            if (v > maxVotes) {
+                maxVotes = v;
+                votedOut = entry.getKey();
+            } else if (v == maxVotes) {
+                // tie
+            }
+        }
+
+        if (maxVotes > 0) {
+            int countMax = 0;
+            for (var entry : tally.entrySet()) if (entry.getValue() == maxVotes) countMax++;
+            if (countMax > 1) {
+                votedOut = ""; // 平票无人出局
+            }
+        } else {
+            votedOut = "";
+        }
+
+        Map<String, String> payload = new HashMap<>();
+        payload.put("votedOut", votedOut == null ? "" : votedOut);
+        for (var e : tally.entrySet()) {
+            payload.put("count_" + e.getKey(), String.valueOf(e.getValue()));
+        }
+
+        broadcastRaw(Message.build("VOTE_RESULT", payload));
+
+        // ✅ 若有玩家出局，修改状态并广播 DEAD
+        if (votedOut != null && !votedOut.isEmpty()) {
+            PlayerInfo pi = gameState.getPlayer(votedOut);
+            if (pi != null) {
+                // 使用你 PlayerInfo 中存在的方法：setAlive(false)
+                pi.setAlive(false);
+                Map<String, String> deadPayload = new HashMap<>();
+                deadPayload.put("id", votedOut);
+                broadcastRaw(Message.build("DEAD", deadPayload));
+                System.out.println("Player " + votedOut + " 出局 (DEAD)");
+            }
+        }
+
+        currentVotes.clear();
+        meetingActive = false;
+        inVotePhase = false;
+    }
+
+    public synchronized void startMeeting(int discussionSeconds, int voteSeconds) {
+        if (meetingActive) return;
+        meetingActive = true;
+        inVotePhase = false;
+        currentVotes.clear();
+
+        Map<String, String> payload = new HashMap<>();
+        payload.put("duration", String.valueOf(discussionSeconds));
+        broadcastRaw(Message.build("MEETING_DISCUSSION_START", payload));
+        System.out.println("Meeting: DISCUSSION started for " + discussionSeconds + "s");
+
+        new Thread(() -> {
+            try {
+                Thread.sleep(discussionSeconds * 1000L);
+
+                inVotePhase = true;
+                Map<String, String> votePayload = new HashMap<>();
+                votePayload.put("duration", String.valueOf(voteSeconds));
+                broadcastRaw(Message.build("MEETING_VOTE_START", votePayload));
+                System.out.println("Meeting: VOTE started for " + voteSeconds + "s");
+
+                Thread.sleep(voteSeconds * 1000L);
+
+                finalizeMeeting();
+                System.out.println("Meeting: finalized");
+            } catch (InterruptedException ignored) {
+                meetingActive = false;
+                inVotePhase = false;
+            }
+        }).start();
+    }
+
+    private void sendRawToClient(Map<String, String> payload, String targetId) throws IOException {
+        String raw = Message.build("JOIN", payload);
+        synchronized (clients) {
+            for (ClientHandler ch : clients) {
+                if (targetId.equals(ch.playerId)) { ch.sendRaw(raw); break; }
+            }
+        }
+    }
+
     private class ClientHandler implements Runnable {
         private final Socket sock;
         private final BufferedReader in;
@@ -62,8 +172,8 @@ public class GameServer {
 
         public ClientHandler(Socket s) throws IOException {
             this.sock = s;
-            this.in = new BufferedReader(new InputStreamReader(s.getInputStream(), "UTF-8"));
-            this.out = new BufferedWriter(new OutputStreamWriter(s.getOutputStream(), "UTF-8"));
+            this.in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
+            this.out = new BufferedWriter(new OutputStreamWriter(s.getOutputStream(), StandardCharsets.UTF_8));
         }
 
         public void sendRaw(String raw) throws IOException {
@@ -88,7 +198,6 @@ public class GameServer {
                 try { sock.close(); } catch (IOException ignored) {}
                 if (playerId != null) {
                     gameState.removePlayer(playerId);
-                    // 广播离开
                     Map<String, String> pl = new HashMap<>();
                     pl.put("id", playerId);
                     broadcastRaw(Message.build("LEAVE", pl));
@@ -109,7 +218,6 @@ public class GameServer {
                     PlayerInfo pi = new PlayerInfo(id, nick, color, x, y);
                     gameState.addOrUpdatePlayer(pi);
 
-                    // 1️⃣ 给新玩家发送所有已存在玩家信息
                     synchronized (clients) {
                         for (ClientHandler ch : clients) {
                             if (ch.playerId == null || ch.playerId.equals(id)) continue;
@@ -121,17 +229,18 @@ public class GameServer {
                                 payloadExisting.put("color", existing.getColor());
                                 payloadExisting.put("x", String.valueOf(existing.getX()));
                                 payloadExisting.put("y", String.valueOf(existing.getY()));
-                                try {
-                                    sendRawToClient(payloadExisting, id); // 给新玩家发
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
+                                try { sendRawToClient(payloadExisting, id); } catch (IOException e) { e.printStackTrace(); }
                             }
                         }
                     }
 
-                    // 2️⃣ 广播新玩家加入给所有人（包括自己）
-                    broadcastRaw(rawLine);
+                    Map<String, String> broadcastPayload = new HashMap<>();
+                    broadcastPayload.put("id", id);
+                    broadcastPayload.put("nick", nick);
+                    broadcastPayload.put("color", color);
+                    broadcastPayload.put("x", String.valueOf(x));
+                    broadcastPayload.put("y", String.valueOf(y));
+                    broadcastRaw(Message.build("JOIN", broadcastPayload));
                     System.out.println("Player JOIN: " + id + " nick=" + nick);
                     break;
                 }
@@ -140,66 +249,67 @@ public class GameServer {
                     double x = Double.parseDouble(m.payload.getOrDefault("x", "0"));
                     double y = Double.parseDouble(m.payload.getOrDefault("y", "0"));
                     PlayerInfo pi = gameState.getPlayer(id);
-                    if (pi != null) {
-                        pi.setX(x);
-                        pi.setY(y);
-                    } else {
-                        // 如果服务端没记录，创建临时记录
-                        pi = new PlayerInfo(id, "Player", "green", x, y);
-                        gameState.addOrUpdatePlayer(pi);
-                    }
+                    if (pi != null) { pi.setX(x); pi.setY(y); }
+                    else gameState.addOrUpdatePlayer(new PlayerInfo(id, "Player", "green", x, y));
                     broadcastRaw(rawLine);
                     break;
                 }
                 case "CHAT": {
                     String id = m.payload.get("id");
                     String msg = m.payload.get("msg");
-
                     PlayerInfo pi = gameState.getPlayer(id);
-
                     Map<String, String> chatPayload = new HashMap<>();
                     chatPayload.put("id", id);
                     chatPayload.put("msg", msg);
-
-                    // 从服务器保存的 PlayerInfo 里补充 nick/color
                     if (pi != null) {
                         chatPayload.put("nick", pi.getNick());
                         chatPayload.put("color", pi.getColor());
                     }
-
                     broadcastRaw(Message.build("CHAT", chatPayload));
                     break;
                 }
-
                 case "LEAVE": {
                     String id = m.payload.get("id");
                     gameState.removePlayer(id);
                     broadcastRaw(rawLine);
                     break;
                 }
+                case "REPORT": {
+                    int discussion = Integer.parseInt(m.payload.getOrDefault("discussion", "120"));
+                    int vote = Integer.parseInt(m.payload.getOrDefault("vote", "60"));
+                    System.out.println("REPORT from " + m.payload.get("id") + " -> start meeting");
+                    startMeeting(discussion, vote);
+                    break;
+                }
+                case "VOTE": {
+                    if (!meetingActive || !inVotePhase) {
+                        System.out.println("Received VOTE outside vote phase - ignored");
+                        break;
+                    }
+                    String voter = m.payload.get("voter");
+                    String target = m.payload.get("target");
+                    if (voter != null) {
+                        currentVotes.put(voter, target == null ? "" : target);
+                        System.out.println(voter + " 投票给 " + target);
+
+                        Map<String, String> votePayload = new HashMap<>();
+                        votePayload.put("voter", voter);
+                        votePayload.put("target", target == null ? "" : target);
+                        broadcastRaw(Message.build("VOTE_UPDATE", votePayload));
+                    }
+                    break;
+                }
+                case "FINALIZE": {
+                    if (meetingActive) finalizeMeeting();
+                    break;
+                }
                 default:
-                    // TODO: 其他类型（kill/report/vote）后续添加
                     broadcastRaw(rawLine);
             }
         }
     }
 
-    // quick start
     public static void main(String[] args) throws Exception {
-        int port = 55555;
-        GameServer server = new GameServer(port);
-        server.start();
-    }
-    // 新增：只发送给指定客户端
-    private void sendRawToClient(Map<String, String> payload, String targetId) throws IOException {
-        String raw = Message.build("JOIN", payload);
-        synchronized (clients) {
-            for (ClientHandler ch : clients) {
-                if (targetId.equals(ch.playerId)) {
-                    ch.sendRaw(raw);
-                    break;
-                }
-            }
-        }
+        new GameServer(55555).start();
     }
 }
