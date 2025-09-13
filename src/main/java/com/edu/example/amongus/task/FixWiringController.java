@@ -27,12 +27,10 @@ public class FixWiringController {
 
     private Line currentLine;
     private Circle currentLeft;
-
     private FixWiring logic;
 
     //记录左元和右圆的配对
     private Map<Circle, Circle> connected = new HashMap<>();
-
     private Circle[] leftCircles;
     private Circle[] rightCircles;
 
@@ -46,19 +44,6 @@ public class FixWiringController {
         Image bgImage = new Image(getClass().getResource("/com/edu/example/amongus/images/Fix_Wiring.png").toExternalForm());
         background.setImage(bgImage);
 
-//        background.setFitWidth(bgImage.getWidth());
-//        background.setFitHeight(bgImage.getHeight());
-//        root.setPrefWidth(bgImage.getWidth());
-//        root.setPrefHeight(bgImage.getHeight());
-
-//        // 直接使用原始图片大小
-//        background.setFitWidth(bgImage.getWidth());
-//        background.setFitHeight(bgImage.getHeight());
-//
-//        // AnchorPane 跟随图片大小
-//        root.setPrefWidth(bgImage.getWidth());
-//        root.setPrefHeight(bgImage.getHeight());
-//
         leftCircles = new Circle[]{left1, left2, left3, left4};
         rightCircles = new Circle[]{right1, right2, right3, right4};
 
@@ -164,10 +149,7 @@ public class FixWiringController {
     }
 
     public Image getBackgroundImage() {
-        if (background != null) {
-            return background.getImage();
-        }
-        return null; // 如果还没加载，就返回 null
+        return background != null ? background.getImage() : null;
     }
 }
 

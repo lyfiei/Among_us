@@ -4,6 +4,7 @@ import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
 import com.edu.example.amongus.task.CardSwipeTask;
 import com.edu.example.amongus.task.DownloadTask;
+import com.edu.example.amongus.task.FixWiring;
 import com.edu.example.amongus.task.TaskManager;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
@@ -29,6 +30,7 @@ public class GameApp {
     private final TaskManager taskManager;
     private CardSwipeTask cardTask;
     private DownloadTask downloadTask;
+    private FixWiring fixWiring;
 
     private final Canvas fogCanvas; // 保留迷雾画布
 
@@ -102,6 +104,7 @@ public class GameApp {
             // 保留原来的 T/F 按键触发任务
             if (e.getCode() == KeyCode.T && !cardTask.isActive()) cardTask.start();
             if (e.getCode() == KeyCode.F && !downloadTask.isActive()) downloadTask.start();
+            if(e.getCode() == KeyCode.G && !fixWiring.isActive()) fixWiring.start();
         });
 
         scene.setOnKeyReleased(e -> inputHandler.release(e.getCode()));
@@ -109,6 +112,7 @@ public class GameApp {
         AnimationTimer timer = new AnimationTimer() {
             @Override
             public void handle(long now) {
+                //用来走路
                 double dx = 0, dy = 0;
                 if (inputHandler.isPressed(KeyCode.UP)) dy -= GameConstants.MOVEMENT_SPEED;
                 if (inputHandler.isPressed(KeyCode.DOWN)) dy += GameConstants.MOVEMENT_SPEED;
