@@ -104,10 +104,33 @@ public class GameServer {
                     String color = m.payload.getOrDefault("color", "green");
                     double x = Double.parseDouble(m.payload.getOrDefault("x", "0"));
                     double y = Double.parseDouble(m.payload.getOrDefault("y", "0"));
+
                     this.playerId = id;
                     PlayerInfo pi = new PlayerInfo(id, nick, color, x, y);
                     gameState.addOrUpdatePlayer(pi);
-                    // 广播原始 JOIN 给所有客户端（包括自己）
+
+                    // 1️⃣ 给新玩家发送所有已存在玩家信息
+                    synchronized (clients) {
+                        for (ClientHandler ch : clients) {
+                            if (ch.playerId == null || ch.playerId.equals(id)) continue;
+                            PlayerInfo existing = gameState.getPlayer(ch.playerId);
+                            if (existing != null) {
+                                Map<String, String> payloadExisting = new HashMap<>();
+                                payloadExisting.put("id", existing.getId());
+                                payloadExisting.put("nick", existing.getNick());
+                                payloadExisting.put("color", existing.getColor());
+                                payloadExisting.put("x", String.valueOf(existing.getX()));
+                                payloadExisting.put("y", String.valueOf(existing.getY()));
+                                try {
+                                    sendRawToClient(payloadExisting, id); // 给新玩家发
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }
+
+                    // 2️⃣ 广播新玩家加入给所有人（包括自己）
                     broadcastRaw(rawLine);
                     System.out.println("Player JOIN: " + id + " nick=" + nick);
                     break;
@@ -129,10 +152,25 @@ public class GameServer {
                     break;
                 }
                 case "CHAT": {
-                    // 直接广播
-                    broadcastRaw(rawLine);
+                    String id = m.payload.get("id");
+                    String msg = m.payload.get("msg");
+
+                    PlayerInfo pi = gameState.getPlayer(id);
+
+                    Map<String, String> chatPayload = new HashMap<>();
+                    chatPayload.put("id", id);
+                    chatPayload.put("msg", msg);
+
+                    // 从服务器保存的 PlayerInfo 里补充 nick/color
+                    if (pi != null) {
+                        chatPayload.put("nick", pi.getNick());
+                        chatPayload.put("color", pi.getColor());
+                    }
+
+                    broadcastRaw(Message.build("CHAT", chatPayload));
                     break;
                 }
+
                 case "LEAVE": {
                     String id = m.payload.get("id");
                     gameState.removePlayer(id);
@@ -151,5 +189,17 @@ public class GameServer {
         int port = 55555;
         GameServer server = new GameServer(port);
         server.start();
+    }
+    // 新增：只发送给指定客户端
+    private void sendRawToClient(Map<String, String> payload, String targetId) throws IOException {
+        String raw = Message.build("JOIN", payload);
+        synchronized (clients) {
+            for (ClientHandler ch : clients) {
+                if (targetId.equals(ch.playerId)) {
+                    ch.sendRaw(raw);
+                    break;
+                }
+            }
+        }
     }
 }
