@@ -3,8 +3,12 @@ package com.edu.example.amongus;
 import com.edu.example.amongus.logic.GameConfig;
 import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
+import com.edu.example.amongus.task.CardSwipeTask;
 import com.edu.example.amongus.task.DownloadTask;
 import com.edu.example.amongus.ui.ChatPane;
+import com.edu.example.amongus.task.FixWiring;
+import com.edu.example.amongus.task.TaskManager;
+import com.edu.example.amongus.task.TriggerZone;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -26,6 +30,14 @@ public class GameApp {
     private final Player player;
     private final Mapp gameMap;
     private final InputHandler inputHandler;
+    Label posLabel = new Label();
+
+    // 任务管理
+    private final TaskManager taskManager;
+    private CardSwipeTask cardTask;
+    private DownloadTask downloadTask;
+    private FixWiring fixWiring;
+
 
     private final Canvas fogCanvas;
     private GameClient client;
@@ -36,9 +48,14 @@ public class GameApp {
     private final ChatPane chatPane;
     private final Map<String, RemotePlayer> remotePlayers = new HashMap<>();
 
+
+
     public GameApp(Pane pane) {
         this.gamePane = pane;
         this.inputHandler = new InputHandler();
+        // ✅ 新版 TaskManager 需要 Pane
+        this.taskManager = new TaskManager(gamePane);
+
 
         // 生成 id 和昵称
         this.myId = UUID.randomUUID().toString();
@@ -58,6 +75,20 @@ public class GameApp {
         // 昵称标签
         myNameTag = new Label(myNick);
         myNameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
+
+            // 初始化任务和触发区
+            cardTask = new CardSwipeTask(gamePane);
+            cardTask.setTaskCompleteListener(success -> System.out.println("刷卡完成: " + success));
+            TriggerZone cardZone = new TriggerZone(1850, 810, 320, 300, "CardSwipe");
+            taskManager.addTask(cardTask, cardZone);
+
+            downloadTask = new DownloadTask();
+            TriggerZone downloadZone = new TriggerZone(1200, 800, 80, 80, "Download");
+            taskManager.addTask(downloadTask, downloadZone);
+
+            fixWiring = new FixWiring();
+            TriggerZone fixZone = new TriggerZone(1400, 700, 80, 80, "FixWiring");
+            taskManager.addTask(fixWiring, fixZone);
 
         // 添加地图、玩家、昵称
         gamePane.getChildren().addAll(gameMap.getMapView(), player.getView(), myNameTag);
@@ -127,10 +158,19 @@ public class GameApp {
 
     public void handleInput(Scene scene) {
         scene.setOnKeyPressed(e -> {
+            inputHandler.press(e.getCode());
+
+            // ✅ 按键只在当前触发区有效
+            switch (e.getCode()) {
+                case T -> taskManager.tryStartTask("CardSwipe");
+                case F -> taskManager.tryStartTask("Download");
+                case G -> taskManager.tryStartTask("FixWiring");
+            }
             if (!chatPane.isVisible()) inputHandler.press(e.getCode());
             if (e.getCode() == KeyCode.T) { /* TODO */ }
             if (e.getCode() == KeyCode.F) new DownloadTask().start();
         });
+
 
         scene.setOnKeyReleased(e -> {
             if (!chatPane.isVisible()) inputHandler.release(e.getCode());
@@ -166,12 +206,32 @@ public class GameApp {
                 myNameTag.setLayoutX(player.getX() + offsetX);
                 myNameTag.setLayoutY(player.getY() + offsetY - 20);
 
+                for (TriggerZone z : taskManager.getZones()) {
+                    z.getView().setX(z.getWorldX() + offsetX);
+                    z.getView().setY(z.getWorldY() + offsetY);
+                }
+
+                // 更新远端玩家
                 for (RemotePlayer rp : remotePlayers.values()) {
                     rp.view.setX(rp.x + offsetX);
                     rp.view.setY(rp.y + offsetY);
                     rp.nameTag.setLayoutX(rp.x + offsetX);
                     rp.nameTag.setLayoutY(rp.y + offsetY - 20);
                 }
+
+
+                // ✅ 每帧检测玩家是否进入触发区，高亮可按任务
+                taskManager.checkTasks(player);
+
+                // 如果玩家进入了触发区，把矩形放到最上层（确保可见）
+                int currentZone = taskManager.getCurrentZoneIndex();
+                if (currentZone >= 0) {
+                    TriggerZone z = taskManager.getZones().get(currentZone);
+                    z.getView().toFront();
+                }
+
+                System.out.println("Player pos: x=" + player.getX() + ", y=" + player.getY());
+
             }
         };
         timer.start();

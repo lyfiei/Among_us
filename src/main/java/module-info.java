@@ -8,6 +8,5 @@ module com.edu.example.amongus {
     exports com.edu.example.amongus;
     exports com.edu.example.amongus.task;
     opens com.edu.example.amongus.task to javafx.fxml;
-    opens com.edu.example.amongus.ui to javafx.fxml;  // <-- 允许 FXML 访问
 
 }

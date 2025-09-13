@@ -1,5 +1,6 @@
 package com.edu.example.amongus;
 
+import javafx.geometry.Bounds;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
@@ -77,5 +78,10 @@ public class Player {
         }
         return true;
     }
+
+    public Bounds getBounds() {
+        return view.getBoundsInParent(); // view 是 ImageView
+    }
+
 
 }
