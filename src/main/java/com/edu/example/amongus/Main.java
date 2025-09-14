@@ -92,7 +92,7 @@ public class Main extends Application {
         Player myPlayer = new Player(startX, startY, playerImage, collisionReader);
 
         // 6. 创建 GameApp（但不切换场景，等服务器下发 GAME_START）
-        game = new GameApp(new Pane(), myPlayer);
+        game = new GameApp(new Pane());
 
         //GameApp 会在收到服务器 GAME_START 消息后显示玩家和地图
     }
