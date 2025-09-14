@@ -22,6 +22,7 @@ import javafx.scene.layout.Pane;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,13 +49,16 @@ public class GameApp {
     private final ChatPane chatPane;
     private final Map<String, RemotePlayer> remotePlayers = new HashMap<>();
 
+    private GameConfig gameConfig;
 
-
-    public GameApp(Pane pane) {
+    //GameApp 会在收到服务器 GAME_START 消息后显示玩家和地图
+    public GameApp(Pane pane,Player myPlayer) {
         this.gamePane = pane;
+        this.player = myPlayer;
         this.inputHandler = new InputHandler();
         // ✅ 新版 TaskManager 需要 Pane
         this.taskManager = new TaskManager(gamePane);
+
 
 
         // 生成 id 和昵称
@@ -70,7 +74,6 @@ public class GameApp {
         Image playerImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/" + myColor + ".png"));
 
         gameMap = new Mapp(mapImage, collisionImage);
-        player = new Player(1650, 500, playerImage, gameMap.getCollisionReader());
 
         // 昵称标签
         myNameTag = new Label(myNick);
@@ -99,7 +102,10 @@ public class GameApp {
 
         // 尝试连接服务器
         try {
-            this.client = new GameClient("127.0.0.1", 55555, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+            this.client = new GameClient("127.0.0.1", 55555, parsed -> Platform.runLater(() ->{
+                System.out.println("runLater 执行: type=" + parsed.type);
+                handleNetworkMessage(parsed);
+            }));
 
             // 发送 JOIN 消息
             Map<String, String> payload = new HashMap<>();
@@ -110,11 +116,14 @@ public class GameApp {
             payload.put("y", String.valueOf(player.getY()));
             client.send("JOIN", payload);
 
+            GameConfig.setJoined(true);
+
             System.out.println("Connected to server as " + myNick + " (" + myId + ")");
         } catch (IOException ex) {
             System.out.println("无法连接服务器（进入离线模式）: " + ex.getMessage());
             this.client = null;
         }
+
 
         // 聊天面板
         chatPane = new ChatPane(msg -> {
@@ -125,37 +134,66 @@ public class GameApp {
                     pl.put("nick", myNick);
                     pl.put("color", myColor);
                     pl.put("msg", msg);
+                    // 这里发消息
                     client.send("CHAT", pl);
-                } catch (IOException e) { e.printStackTrace(); }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
             // 发送完消息回到游戏焦点
             Platform.runLater(() -> gamePane.requestFocus());
         }, myNick, myColor);
 
+// 默认隐藏聊天面板
+        chatPane.setVisible(false);
         gamePane.getChildren().add(chatPane);
+
+// 布局绑定
         chatPane.layoutXProperty().bind(gamePane.widthProperty().subtract(320));
         chatPane.setLayoutY(40);
-        chatPane.setVisible(false);
 
-        // 聊天按钮
+// 聊天按钮
         Button chatBtn = new Button("聊天室");
         chatBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(80));
         chatBtn.setLayoutY(8);
         chatBtn.setOnAction(e -> {
             chatPane.toggle();
             if (chatPane.isVisible()) {
-                chatPane.toFront(); // 置顶
+                chatPane.toFront();          // 置顶
                 chatPane.requestFocusInput(); // 自动聚焦输入框
             } else {
-                gamePane.requestFocus(); // 回到游戏
+                gamePane.requestFocus();     // 回到游戏
             }
         });
         gamePane.getChildren().add(chatBtn);
 
-        // 初始获得焦点，保证可以移动
+// 初始获得焦点，保证可以移动
         Platform.runLater(() -> gamePane.requestFocus());
+
     }
 
+//    private void connectToServer() {
+//        try {
+//            this.client = new GameClient("127.0.0.1", 55555,
+//                    parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+//
+//            Map<String, String> payload = new HashMap<>();
+//            payload.put("id", myId);
+//            payload.put("nick", myNick);
+//            payload.put("color", myColor);
+//            payload.put("x", String.valueOf(player.getX()));
+//            payload.put("y", String.valueOf(player.getY()));
+//            //客户端发送join消息
+//            client.send("JOIN", payload);
+//
+//            System.out.println("Connected to server as " + myNick + " (" + myId + ")");
+//        } catch (IOException ex) {
+//            System.out.println("无法连接服务器（离线模式）: " + ex.getMessage());
+//            this.client = null;
+//        }
+//    }
+
+    /** 玩家输入 + 游戏循环 */
     public void handleInput(Scene scene) {
         scene.setOnKeyPressed(e -> {
             inputHandler.press(e.getCode());
@@ -252,8 +290,13 @@ public class GameApp {
             case "MOVE": handleMove(parsed); break;
             case "LEAVE": handleLeave(parsed); break;
             case "CHAT": handleChat(parsed); break;
+            case "GAME_START":handleGameStart(parsed); break;
             default: break;
         }
+    }
+
+    private void handleGameStart(Message.Parsed parsed) {
+        gameConfig.handleServerMessage(parsed);
     }
 
     private void handleJoin(Message.Parsed parsed) {
@@ -322,5 +365,9 @@ public class GameApp {
             this.nameTag = new Label(nick);
             this.nameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
         }
+    }
+
+    public Pane getGamePane() {
+        return gamePane;
     }
 }

@@ -27,7 +27,9 @@ public class GameClient {
             try {
                 String line;
                 while ((line = in.readLine()) != null) {
+                    System.out.println("收到原始消息: " + line); // ✅ 打印服务器发来的每条消息
                     Message.Parsed p = Message.parse(line);
+                    System.out.println("准备调用 onMessage.accept");
                     try {
                         onMessage.accept(p);
                     } catch (Exception ex) {

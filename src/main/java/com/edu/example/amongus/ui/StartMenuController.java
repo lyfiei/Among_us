@@ -7,10 +7,14 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
+import java.io.IOException;
+
 public class StartMenuController {
 
     @FXML private TextField nameField;
     @FXML private ImageView characterView;
+
+    private boolean hasJoined = false;
 
     private final String[] colors = {"green", "red", "blue", "yellow", "purple"};
     private int currentIndex = 0;
@@ -34,6 +38,9 @@ public class StartMenuController {
 
     @FXML
     private void onStart() {
+        if (hasJoined) return;
+
+        hasJoined = true;
         String playerName = nameField.getText().trim();
         String skinColor = colors[currentIndex];
 
@@ -48,12 +55,10 @@ public class StartMenuController {
         System.out.println("玩家昵称: " + playerName);
         System.out.println("选择皮肤: " + skinColor);
 
-        // 切换到游戏界面
-        Main.startGame();
+        Main.joinGame();
     }
 
-
-    private void updateCharacter() {
+    private void updateCharacter(){
         String color = colors[currentIndex];
         String path = "/com/edu/example/amongus/images/" + color + ".png";
         characterView.setImage(new Image(getClass().getResource(path).toExternalForm()));

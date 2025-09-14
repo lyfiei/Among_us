@@ -10,6 +10,10 @@ public class Player {
     private double y;
     private final ImageView view;// 玩家视图
     private final PixelReader collisionReader;// 地图碰撞像素读取器
+    public enum PlayerType {
+        GOOD, EVIL
+    }
+    private  PlayerType type; // 新增类型字段
 
     public Player(double startX, double startY, Image playerImage, PixelReader collisionReader) {
         this.x = startX;
@@ -18,7 +22,17 @@ public class Player {
         this.view.setFitWidth(GameConstants.PLAYER_SIZE);
         this.view.setFitHeight(GameConstants.PLAYER_SIZE);
         this.collisionReader = collisionReader;
+        this.type = null;
         updateView();
+    }
+
+    public PlayerType getType() {
+        return type;
+    }
+
+    public void setType(PlayerType type) {
+        this.type = type; // GOOD / EVIL
+        // 可以根据 type 改变玩家外观或标识
     }
 
     public ImageView getView() {
