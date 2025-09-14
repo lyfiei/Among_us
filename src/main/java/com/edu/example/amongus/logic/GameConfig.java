@@ -3,7 +3,9 @@ package com.edu.example.amongus.logic;
 import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
 import com.edu.example.amongus.ui.MatchUpdateListener;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.util.Duration;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -84,9 +86,11 @@ public class GameConfig {
                 System.out.println("游戏开始！");
                 // 收到服务器 GAME_START 后启动游戏
                 Platform.runLater(() -> {
+                    PauseTransition delay = new PauseTransition(Duration.millis(500));
                     System.out.println("收到服务器 GAME_START 后启动游戏runLater 执行了");
                     //System.out.println("primaryStage = " + primaryStage);
                     com.edu.example.amongus.Main.startGameScene();
+                    System.out.println("你的角色是 "+com.edu.example.amongus.logic.GameConfig.getPlayerRole());
                 });
                 break;
         }

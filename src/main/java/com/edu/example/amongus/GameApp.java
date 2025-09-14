@@ -74,10 +74,13 @@ public class GameApp {
     private Button reportBtn;
     private Label eliminatedOverlay = null;
 
-    //private MiniMap miniMap; // 小地图
+    private MiniMap miniMap; // 小地图
     private Image goodMapBg; // 好人小地图背景
     private Image evilMapBg; // 坏人小地图背景
     private Image playerIcon; // 玩家头像
+    public enum PlayerType {
+        GOOD, EVIL
+    }
 
     private MatchUI matchUI;
     //匹配回调监听
@@ -198,49 +201,53 @@ public class GameApp {
         });
         gamePane.getChildren().add(reportBtn);
 
-//        // 创建 MiniMap
-//        miniMap = new MiniMap(
-//                player.getType() == Player.PlayerType.EVIL ? evilMapBg : goodMapBg,
-//                playerIcon,
-//                GameConstants.MAP_WIDTH,
-//                GameConstants.MAP_HEIGHT,
-//                200, 150
-//        );
-//
-//// 放到右上角
-//        miniMap.layoutYProperty().set(50);
-//        miniMap.layoutXProperty().bind(gamePane.widthProperty().subtract(200 + 8));
-//        gamePane.getChildren().add(miniMap);
-//
-//// 绑定玩家位置属性
-//        miniMap.bindPlayerPosition(player.xProperty(), player.yProperty());
-//
-//// 小地图按钮
-//        Button miniMapBtn = new Button("小地图");
-//        miniMapBtn.setPrefWidth(80);
-//        miniMapBtn.setPrefHeight(30);
-//
-//// 让它在聊天按钮右边：直接绑定 X 坐标
-//        miniMapBtn.layoutXProperty().bind(chatBtn.layoutXProperty().add(chatBtn.widthProperty()).add(8));
-//        miniMapBtn.setLayoutY(8); // 同一行
-//
-//        gamePane.getChildren().add(miniMapBtn);
-//        miniMapBtn.setOnAction(e -> {
-//            boolean visible = !miniMap.isVisible();
-//            miniMap.setVisible(visible);
-//            if (visible) {
-//                miniMap.toFront(); // 确保在最上层
-//            } else {
-//                gamePane.requestFocus(); // 回到游戏焦点
-//            }
-//        });
-//
-//
-//        // 添加状态栏
-//        gamePane.getChildren().add(statusBar);
-//        statusBar.setLayoutX(20);
-//        statusBar.setLayoutY(20);
-//        statusBar.toFront();
+        // 1️⃣ 加载小地图资源
+        goodMapBg = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/minimap_good.png"));
+        evilMapBg = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/minimap_evil.png"));
+        playerIcon = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/myicon.png"));
+
+
+        double scale = 0.4; // 缩放比例，比如 20% 尺寸
+
+        miniMap = new MiniMap(
+                PlayerType.EVIL.equals(player.getType()) ? evilMapBg : goodMapBg,
+                playerIcon,
+                GameConstants.MAP_WIDTH,   // 游戏地图宽
+                GameConstants.MAP_HEIGHT,  // 游戏地图高
+                GameConstants.MAP_WIDTH * scale,   // 显示宽
+                GameConstants.MAP_HEIGHT * scale   // 显示高
+        );
+        miniMap.setVisible(false);
+        gamePane.getChildren().add(miniMap);
+
+// ✅ 居中显示
+        miniMap.layoutXProperty().bind(gamePane.widthProperty().subtract(miniMap.getPrefWidth()).divide(2));
+        miniMap.layoutYProperty().bind(gamePane.heightProperty().subtract(miniMap.getPrefHeight()).divide(2));
+
+
+
+// 3️⃣ 创建小地图按钮，放在聊天按钮右边
+        Button miniMapBtn = new Button("小地图");
+        miniMapBtn.setPrefWidth(80);
+        miniMapBtn.setPrefHeight(30);
+        miniMapBtn.layoutYProperty().set(8);
+        miniMapBtn.layoutXProperty().bind(reportBtn.layoutXProperty().add(reportBtn.widthProperty()).add(8));
+
+// 4️⃣ 点击按钮显示/隐藏小地图，并在打开时更新玩家位置
+        miniMapBtn.setOnAction(e -> {
+            boolean visible = !miniMap.isVisible();
+            miniMap.setVisible(visible);
+
+            if (visible) {
+                miniMap.toFront(); // 置顶
+                miniMap.updatePlayerPosition(player.getX(), player.getY()); // ✅ 懒更新玩家位置
+            } else {
+                gamePane.requestFocus(); // 回到游戏焦点
+            }
+        });
+
+        gamePane.getChildren().add(miniMapBtn);
+
 
         // meeting timer label
         meetingTimerLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
@@ -397,6 +404,7 @@ public class GameApp {
             case "LEAVE": handleLeave(parsed); break;
             case "CHAT": handleChat(parsed); break;
             case "GAME_START": handleGameStart(parsed); break;
+            case "ROLE": handleGameStart(parsed); break;
             case "MATCH_UPDATE": {
                 int current = Integer.parseInt(parsed.payload.get("current"));
                 int total = Integer.parseInt(parsed.payload.get("total"));

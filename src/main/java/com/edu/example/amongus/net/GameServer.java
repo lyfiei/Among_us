@@ -314,6 +314,7 @@ public class GameServer {
                         waitingQueue.add(id);
                     }
 
+
                     // 额外广播匹配进度
                     Map<String, String> matchPayload = new HashMap<>();
                     matchPayload.put("current", String.valueOf(waitingQueue.size()));
