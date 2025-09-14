@@ -172,27 +172,6 @@ public class GameApp {
 
     }
 
-//    private void connectToServer() {
-//        try {
-//            this.client = new GameClient("127.0.0.1", 55555,
-//                    parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
-//
-//            Map<String, String> payload = new HashMap<>();
-//            payload.put("id", myId);
-//            payload.put("nick", myNick);
-//            payload.put("color", myColor);
-//            payload.put("x", String.valueOf(player.getX()));
-//            payload.put("y", String.valueOf(player.getY()));
-//            //客户端发送join消息
-//            client.send("JOIN", payload);
-//
-//            System.out.println("Connected to server as " + myNick + " (" + myId + ")");
-//        } catch (IOException ex) {
-//            System.out.println("无法连接服务器（离线模式）: " + ex.getMessage());
-//            this.client = null;
-//        }
-//    }
-
     /** 玩家输入 + 游戏循环 */
     public void handleInput(Scene scene) {
         scene.setOnKeyPressed(e -> {

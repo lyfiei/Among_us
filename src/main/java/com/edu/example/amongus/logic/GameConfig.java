@@ -70,7 +70,7 @@ public class GameConfig {
 //        GameConfig.setJoined(true);
 //    }
 
-    //是收到服务器 GAME_START 后启动游戏？
+    //是收到服务器 GAME_START 后启动游戏
     public static void handleServerMessage(Message.Parsed parsed) {
         System.out.println("handleServerMessage 被调用: " + parsed.type);
         if (parsed == null) return;

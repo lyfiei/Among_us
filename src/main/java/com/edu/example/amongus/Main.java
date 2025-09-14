@@ -2,6 +2,7 @@ package com.edu.example.amongus;
 
 import com.edu.example.amongus.logic.GameConfig;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -21,14 +22,22 @@ public class Main extends Application {
 
     public static void startGameScene() {
         if (game == null) return;
-
+        System.out.println("startGameScene called");
         Pane root = game.getGamePane();
         Scene gameScene = new Scene(root, 800, 600);
 
-        // 让 GameApp 开始监听输入
-        game.handleInput(gameScene);
 
+// 让 GameApp 开始监听输入
+        game.handleInput(gameScene);
         primaryStage.setScene(gameScene);
+
+        primaryStage.show();
+
+        Platform.runLater(() -> {
+            gameScene.getRoot().setFocusTraversable(true);
+            gameScene.getRoot().requestFocus();
+            System.out.println("focus ok? " + gameScene.getRoot().isFocused());
+        });
     }
 
     @Override
@@ -42,6 +51,7 @@ public class Main extends Application {
         stage.setTitle("Among Us Demo");
         stage.setScene(startScene);
         stage.show();
+
     }
 
     /** 玩家点击“加入游戏”按钮时调用 */
@@ -61,8 +71,8 @@ public class Main extends Application {
         PixelReader collisionReader = collisionImage.getPixelReader();
 
         // 4. 设置默认初始坐标（以后可以改为服务器分配）
-        double startX = 100;
-        double startY = 100;
+        double startX = 1650;
+        double startY = 500;
 
         // 5. 创建玩家对象
         Player myPlayer = new Player(startX, startY, playerImage, collisionReader);
