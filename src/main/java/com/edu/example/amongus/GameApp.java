@@ -22,6 +22,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public class GameApp {
+
     private final Pane gamePane;
     private final Player player;
     private final Mapp gameMap;
@@ -51,7 +53,7 @@ public class GameApp {
 
     // meeting / vote
     private boolean inMeeting = false;
-    private boolean isEliminated = false; // 本地玩家是否已被淘汰（只能阻止本地输入）
+    private boolean isEliminated = false;
     private VotePane votePane = null;
     private final Label meetingTimerLabel = new Label();
     private Timeline meetingTimer = null;
@@ -83,7 +85,7 @@ public class GameApp {
 
         // tasks and zones
         cardTask = new CardSwipeTask(gamePane);
-        cardTask.setTaskCompleteListener(success -> System.out.println("刷卡完成: " + success));
+        cardTask.setTaskCompleteListener(success -> System.out.println("[DEBUG] 刷卡完成: " + success));
         TriggerZone cardZone = new TriggerZone(1850, 810, 320, 300, "CardSwipe");
         taskManager.addTask(cardTask, cardZone);
 
@@ -95,16 +97,16 @@ public class GameApp {
         TriggerZone fixZone = new TriggerZone(1400, 700, 80, 80, "FixWiring");
         taskManager.addTask(fixWiring, fixZone);
 
-        // add base nodes (map -> player -> name)
+        // add base nodes
         gamePane.getChildren().addAll(gameMap.getMapView(), player.getView(), myNameTag);
 
-        // fog canvas (会覆盖普通 Node，所以聊天/投票需要 add 到 Scene root 或 toFront)
+        // fog canvas
         fogCanvas = new Canvas(GameConstants.MAP_WIDTH, GameConstants.MAP_HEIGHT);
         gamePane.getChildren().add(fogCanvas);
 
         // try connect server
         try {
-            this.client = new GameClient("127.0.0.1", 55555, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+            this.client = new GameClient("127.0.0.1", 33333, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
 
             Map<String, String> payload = new HashMap<>();
             payload.put("id", myId);
@@ -114,14 +116,18 @@ public class GameApp {
             payload.put("y", String.valueOf(player.getY()));
             client.send("JOIN", payload);
 
-            System.out.println("Connected to server as " + myNick + " (" + myId + ")");
+            System.out.println("[DEBUG] Connected to server as " + myNick + " (" + myId + ")");
         } catch (IOException ex) {
-            System.out.println("无法连接服务器（离线模式）: " + ex.getMessage());
+            System.out.println("[DEBUG] 无法连接服务器（离线模式）: " + ex.getMessage());
             this.client = null;
         }
 
-        // chat pane — 不放在 gamePane 的最下层，确保在 canvas 之上
+        // chat pane
         chatPane = new ChatPane(msg -> {
+            if (isEliminated) {
+                System.out.println("[DEBUG] 已淘汰，无法发送消息");
+                return;
+            }
             if (client != null) {
                 try {
                     Map<String, String> pl = new HashMap<>();
@@ -130,9 +136,13 @@ public class GameApp {
                     pl.put("color", myColor);
                     pl.put("msg", msg);
                     client.send("CHAT", pl);
+                    System.out.println("[DEBUG] Sent CHAT: " + msg);
                 } catch (IOException e) { e.printStackTrace(); }
             }
-            Platform.runLater(() -> gamePane.requestFocus());
+            // 请求回到 gamePane（放到 UI 线程）
+            Platform.runLater(() -> {
+                gamePane.requestFocus();
+            });
         }, myNick, myColor);
 
         addNodeToTop(chatPane);
@@ -145,13 +155,15 @@ public class GameApp {
         reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(160));
         reportBtn.setLayoutY(8);
         reportBtn.setOnAction(e -> {
+            if (isEliminated) return; // 已淘汰不能举报/开会
             if (client != null && !inMeeting && !isEliminated) {
                 try {
                     Map<String,String> pl = new HashMap<>();
                     pl.put("id", myId);
-                    pl.put("discussion", "120");
-                    pl.put("vote", "60");
+                    pl.put("discussion", "10");
+                    pl.put("vote", "11");
                     client.send("REPORT", pl);
+                    System.out.println("[DEBUG] Sent REPORT");
                 } catch (IOException ex) { ex.printStackTrace(); }
             }
         });
@@ -164,10 +176,12 @@ public class GameApp {
         meetingTimerLabel.setVisible(false);
         gamePane.getChildren().add(meetingTimerLabel);
 
+        // make gamePane focus traversable so it can receive key events
+        gamePane.setFocusTraversable(true);
+        // initial focus request (in case Scene is ready)
         Platform.runLater(() -> gamePane.requestFocus());
     }
 
-    /** 把 node 放到 Scene root（若 root 是 Pane）以保证其置顶；否则添加到 gamePane 并 toFront() */
     private void addNodeToTop(Node node) {
         if (gamePane.getScene() != null && gamePane.getScene().getRoot() instanceof Pane) {
             Pane root = (Pane) gamePane.getScene().getRoot();
@@ -179,47 +193,91 @@ public class GameApp {
         }
     }
 
+    /**
+     * 处理输入 — 必须在创建 Scene 并显示/加载后调用： gameApp.handleInput(scene);
+     */
     public void handleInput(Scene scene) {
-        scene.setOnKeyPressed(e -> {
-            inputHandler.press(e.getCode());
-            switch (e.getCode()) {
-                case T -> taskManager.tryStartTask("CardSwipe");
-                case F -> taskManager.tryStartTask("Download");
-                case G -> taskManager.tryStartTask("FixWiring");
+        // Safety: make root and gamePane focusable and request focus
+        if (scene.getRoot() != null) {
+            scene.getRoot().setFocusTraversable(true);
+            Platform.runLater(() -> {
+                try {
+                    scene.getRoot().requestFocus();
+                } catch (Exception ignored) {}
+            });
+        }
+        gamePane.setFocusTraversable(true);
+
+        // Use event filters so keystrokes are captured even if focus briefly on controls
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            // Debug log for key press
+            System.out.println("[DEBUG] Key pressed: " + e.getCode() + " (chat visible=" + chatPane.isVisible() + ")");
+            // If chat visible, don't add to movement keys
+            if (!chatPane.isVisible()) {
+                inputHandler.press(e.getCode());
             }
-            if (!chatPane.isVisible()) inputHandler.press(e.getCode());
-            if (e.getCode() == KeyCode.F) new DownloadTask().start();
+            // hotkeys for tasks (allow even if chat visible? keep original behavior: no)
+            if (!chatPane.isVisible()) {
+                switch (e.getCode()) {
+                    case T -> taskManager.tryStartTask("CardSwipe");
+                    case F -> taskManager.tryStartTask("Download");
+                    case G -> taskManager.tryStartTask("FixWiring");
+                }
+            }
+            // keep original behavior: pressing F starts DownloadTask UI as test (you had this earlier)
+            if (e.getCode() == KeyCode.F && !chatPane.isVisible()) {
+                new DownloadTask().start();
+            }
         });
 
-        scene.setOnKeyReleased(e -> {
-            if (!chatPane.isVisible()) inputHandler.release(e.getCode());
+        scene.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+            // Debug log for key release
+            System.out.println("[DEBUG] Key released: " + e.getCode() + " (chat visible=" + chatPane.isVisible() + ")");
+            if (!chatPane.isVisible()) {
+                inputHandler.release(e.getCode());
+            }
         });
 
+        // click to focus back to gamePane
+        scene.setOnMouseClicked(e -> {
+            System.out.println("[DEBUG] Scene clicked, requesting focus to gamePane");
+            gamePane.requestFocus();
+        });
+
+        // Animation / game loop
         AnimationTimer timer = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                // --- 本地输入与移动（只限制本地玩家） ---
                 double dx = 0, dy = 0;
                 if (!inMeeting && !isEliminated) {
-                    if (inputHandler.isPressed(KeyCode.UP)) dy -= GameConstants.MOVEMENT_SPEED;
-                    if (inputHandler.isPressed(KeyCode.DOWN)) dy += GameConstants.MOVEMENT_SPEED;
-                    if (inputHandler.isPressed(KeyCode.LEFT)) dx -= GameConstants.MOVEMENT_SPEED;
-                    if (inputHandler.isPressed(KeyCode.RIGHT)) dx += GameConstants.MOVEMENT_SPEED;
+                    if (inputHandler.isPressed(KeyCode.UP) || inputHandler.isPressed(KeyCode.W)) dy -= GameConstants.MOVEMENT_SPEED;
+                    if (inputHandler.isPressed(KeyCode.DOWN) || inputHandler.isPressed(KeyCode.S)) dy += GameConstants.MOVEMENT_SPEED;
+                    if (inputHandler.isPressed(KeyCode.LEFT) || inputHandler.isPressed(KeyCode.A)) dx -= GameConstants.MOVEMENT_SPEED;
+                    if (inputHandler.isPressed(KeyCode.RIGHT) || inputHandler.isPressed(KeyCode.D)) dx += GameConstants.MOVEMENT_SPEED;
                 }
+
                 if (dx != 0 && dy != 0) { dx /= Math.sqrt(2); dy /= Math.sqrt(2); }
 
+
                 if (!inMeeting && !isEliminated) {
+                    // Try to move local player
                     player.move(dx, dy);
+
+                    // If moved, send server update
                     if (client != null && (dx != 0 || dy != 0)) {
                         Map<String, String> payload = new HashMap<>();
                         payload.put("id", myId);
                         payload.put("x", String.valueOf(player.getX()));
                         payload.put("y", String.valueOf(player.getY()));
-                        try { client.send("MOVE", payload); } catch (IOException ex) { ex.printStackTrace(); }
+                        try {
+                            client.send("MOVE", payload);
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
+                        }
                     }
                 }
 
-                // --- 摄像机 / 渲染位置（始终运行，不受 inMeeting 影响） ---
+                // camera / rendering
                 double offsetX = -player.getX() + getSceneWidth() / 2 - GameConstants.PLAYER_SIZE / 2;
                 double offsetY = -player.getY() + getSceneHeight() / 2 - GameConstants.PLAYER_SIZE / 2;
 
@@ -235,7 +293,6 @@ public class GameApp {
                     z.getView().setY(z.getWorldY() + offsetY);
                 }
 
-                // 远程玩家渲染（始终更新视图位置以反映服务器广播的 x/y）
                 for (RemotePlayer rp : remotePlayers.values()) {
                     rp.view.setX(rp.x + offsetX);
                     rp.view.setY(rp.y + offsetY);
@@ -252,95 +309,93 @@ public class GameApp {
     private double getSceneWidth() {
         return (gamePane.getScene() != null && gamePane.getScene().getWidth() > 0) ? gamePane.getScene().getWidth() : 800;
     }
+
     private double getSceneHeight() {
         return (gamePane.getScene() != null && gamePane.getScene().getHeight() > 0) ? gamePane.getScene().getHeight() : 600;
     }
 
-    /** 网络消息处理（已经在 GameClient 的回调里被 Platform.runLater 包裹） */
+    // --- 网络消息处理 (handleNetworkMessage) ---
     private void handleNetworkMessage(Message.Parsed parsed) {
         if (parsed == null) return;
+
         switch (parsed.type) {
             case "JOIN": handleJoin(parsed); break;
             case "MOVE": handleMove(parsed); break;
             case "LEAVE": handleLeave(parsed); break;
             case "CHAT": handleChat(parsed); break;
-
             case "MEETING_DISCUSSION_START": {
-                int duration = Integer.parseInt(parsed.payload.getOrDefault("duration", "120"));
-                inMeeting = true;
+                int duration = Integer.parseInt(parsed.payload.getOrDefault("duration","120"));
+                inMeeting = true; // 开始讨论
                 addNodeToTop(chatPane);
                 chatPane.show();
                 startMeetingCountdown(duration, "讨论剩余: %d s");
                 break;
             }
             case "MEETING_VOTE_START": {
-                int duration = Integer.parseInt(parsed.payload.getOrDefault("duration", "60"));
-                inMeeting = true;
+                int duration = Integer.parseInt(parsed.payload.getOrDefault("duration","60"));
+                inMeeting = true; // 开始投票
                 addNodeToTop(chatPane);
                 chatPane.show();
                 showVotePane(duration);
                 break;
             }
-            case "VOTE_UPDATE": {
-                String voter = parsed.payload.get("voter");
-                String target = parsed.payload.getOrDefault("target", "");
-                if (votePane != null) votePane.registerVoteUpdate(voter, target);
-                break;
-            }
             case "VOTE_RESULT": {
-                String votedOut = parsed.payload.getOrDefault("votedOut", "");
-                // 1) 更新投票面板显示（如果存在）
-                if (votePane != null) votePane.showVoteResult(votedOut, myId);
+                String votedOut = parsed.payload.getOrDefault("votedOut","");
+                if (votePane != null) votePane.showVoteResult(votedOut);
 
-                // 2) 本地处理出局：自己 or 远端玩家
-                if (votedOut != null && !votedOut.isEmpty()) {
-                    if (votedOut.equals(myId)) {
-                        // 本地被投出：禁止本地移动并显示提示
-                        isEliminated = true;
-                        player.setStatus(PlayerStatus.DEAD);
-                        player.getView().setVisible(false);
-                        myNameTag.setVisible(false);
-                        showEliminatedOverlay();
-                        System.out.println("你已出局！");
-                    } else {
-                        RemotePlayer out = remotePlayers.get(votedOut);
-                        if (out != null) {
-                            out.status = PlayerStatus.DEAD;
-                            out.view.setOpacity(0.4);
-                            out.nameTag.setStyle("-fx-text-fill: gray; -fx-font-size: 14px; -fx-font-weight: bold;");
-                        }
-                    }
-                }
-
-//                // 3) 保留短暂展示后清理 UI 并恢复 inMeeting=false
-//                PauseTransition delay = new PauseTransition(Duration.seconds(4));
-//                delay.setOnFinished(e -> endMeetingCleanup());
-//                delay.play();
-//                break;
-                endMeetingCleanup();
-            }
-            case "DEAD": {
-                // 服务器确认某玩家被淘汰（双保险）
-                String deadId = parsed.payload.get("id");
-                if (deadId == null) break;
-
-                if (deadId.equals(myId)) {
+                if (votedOut != null && !votedOut.isEmpty() && votedOut.equals(myId)) {
                     isEliminated = true;
                     player.setStatus(PlayerStatus.DEAD);
                     player.getView().setVisible(false);
                     myNameTag.setVisible(false);
                     showEliminatedOverlay();
-                    System.out.println("你已被淘汰（服务器确认）！");
-                } else {
-                    RemotePlayer rp = remotePlayers.get(deadId);
-                    if (rp != null) {
-                        rp.setStatus(PlayerStatus.DEAD);
-                        rp.view.setOpacity(0.4);
-                        rp.nameTag.setStyle("-fx-text-fill: gray; -fx-font-size: 14px; -fx-font-weight: bold;");
+                } else if (!votedOut.equals(myId)) {
+                    RemotePlayer out = remotePlayers.get(votedOut);
+                    if (out != null) {
+                        out.status = PlayerStatus.DEAD;
+                        out.view.setOpacity(0.4);
+                        out.nameTag.setStyle("-fx-text-fill: gray; -fx-font-size: 14px; -fx-font-weight: bold;");
                     }
                 }
-                // 清理会议 UI（如果存在），防止卡住 inMeeting
-                endMeetingCleanup();
+
+                // 保留投票面板几秒，让玩家看到出局
+                PauseTransition delay = new PauseTransition(Duration.seconds(4)); // 4秒停留
+                delay.setOnFinished(ev -> {
+                    inMeeting = false;
+                    if (votePane != null && votePane.getParent() instanceof Pane) {
+                        ((Pane) votePane.getParent()).getChildren().remove(votePane);
+                    }
+                    votePane = null;
+                    chatPane.hide();
+                    stopMeetingCountdown();
+                });
+                delay.play();
+
+                break;
+            }
+
+            case "VOTE_UPDATE": {
+                String voter = parsed.payload.get("voter");
+                String target = parsed.payload.get("target");
+                if (votePane != null) votePane.registerVoteUpdate(voter, target);
+                break;
+            }
+
+            case "DEAD": {
+                String deadId = parsed.payload.get("id");
+                if (deadId == null) break;
+                if(deadId.equals(myId)){
+                    isEliminated = true;
+                    player.setStatus(PlayerStatus.DEAD);
+                    player.getView().setVisible(false);
+                    myNameTag.setVisible(false);
+                    showEliminatedOverlay();
+                    System.out.println("[DEBUG] 你已被淘汰（服务器确认）！");
+                } else {
+                    RemotePlayer rp = remotePlayers.get(deadId);
+                    if(rp != null) rp.setStatus(PlayerStatus.DEAD);
+                }
+                // 不要修改 inMeeting
                 break;
             }
 
@@ -348,37 +403,29 @@ public class GameApp {
         }
     }
 
-    /** 结束会议 / 投票时的统一清理（移除投票面板、隐藏聊天室、恢复 inMeeting 标志等） */
     private void endMeetingCleanup() {
-        // remove vote pane if present
-        if (votePane != null) {
-            if (votePane.getParent() instanceof Pane) {
-                ((Pane) votePane.getParent()).getChildren().remove(votePane);
-            }
-            votePane = null;
+        if (votePane != null && votePane.getParent() instanceof Pane) {
+            ((Pane) votePane.getParent()).getChildren().remove(votePane);
         }
-        // hide chat and meeting flags
+        votePane = null;
         chatPane.hide();
         inMeeting = false;
         stopMeetingCountdown();
+        // ensure focus returns to gamePane so keys work again
+        Platform.runLater(() -> {
+            try { gamePane.requestFocus(); } catch (Exception ignored) {}
+        });
     }
 
-    /** 创建并显示投票界面（总是重新创建新的投票面板） */
     private void showVotePane(int voteDuration) {
-        // remove old if present
-        if (votePane != null) {
-            if (votePane.getParent() instanceof Pane) {
-                ((Pane) votePane.getParent()).getChildren().remove(votePane);
-            }
-            votePane = null;
+        if (votePane != null && votePane.getParent() instanceof Pane) {
+            ((Pane) votePane.getParent()).getChildren().remove(votePane);
         }
-
-        votePane = new VotePane(client, myId);
-        votePane.addPlayer(myId, myNick, myColor, player.getStatus());
+        votePane = new VotePane(client,myId);
+        votePane.addPlayer(myId,myNick,myColor,player.getStatus());
         for (RemotePlayer rp : remotePlayers.values()) {
-            votePane.addPlayer(rp.id, rp.nick, rp.color, rp.status);
+            votePane.addPlayer(rp.id,rp.nick,rp.color,rp.status);
         }
-
         votePane.startCountdown(voteDuration);
         addNodeToTop(votePane);
         votePane.setLayoutX(80);
@@ -386,119 +433,110 @@ public class GameApp {
         votePane.toFront();
     }
 
-    private void startMeetingCountdown(int seconds, String labelFormat) {
+    private void startMeetingCountdown(int seconds,String labelFormat) {
         stopMeetingCountdown();
         meetingTimerLabel.setVisible(true);
         final int[] left = {seconds};
-        meetingTimerLabel.setText(String.format(labelFormat, left[0]));
+        meetingTimerLabel.setText(String.format(labelFormat,left[0]));
         meetingTimer = new Timeline(new javafx.animation.KeyFrame(Duration.seconds(1), ev -> {
             left[0]--;
-            meetingTimerLabel.setText(String.format(labelFormat, left[0]));
-            if (left[0] <= 0) stopMeetingCountdown();
+            meetingTimerLabel.setText(String.format(labelFormat,left[0]));
+            if(left[0]<=0) stopMeetingCountdown();
         }));
         meetingTimer.setCycleCount(seconds);
         meetingTimer.play();
     }
 
     private void stopMeetingCountdown() {
-        if (meetingTimer != null) { meetingTimer.stop(); meetingTimer = null; }
+        if(meetingTimer != null){ meetingTimer.stop(); meetingTimer=null; }
         meetingTimerLabel.setVisible(false);
     }
 
-    private void handleJoin(Message.Parsed parsed) {
+    private void handleJoin(Message.Parsed parsed){
         String id = parsed.payload.get("id");
-        if (id.equals(myId)) return;
-
-        String nick = parsed.payload.getOrDefault("nick", "P");
-        String color = parsed.payload.getOrDefault("color", "green");
-        double x = Double.parseDouble(parsed.payload.getOrDefault("x", "0"));
-        double y = Double.parseDouble(parsed.payload.getOrDefault("y", "0"));
-
+        if(id.equals(myId)) return;
+        String nick = parsed.payload.getOrDefault("nick","P");
+        String color = parsed.payload.getOrDefault("color","green");
+        double x = Double.parseDouble(parsed.payload.getOrDefault("x","0"));
+        double y = Double.parseDouble(parsed.payload.getOrDefault("y","0"));
         RemotePlayer rp = remotePlayers.get(id);
-        if (rp == null) {
-            Image img = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/" + color + ".png"));
+        if(rp==null){
+            Image img = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/"+color+".png"));
             ImageView iv = new ImageView(img);
             iv.setFitWidth(GameConstants.PLAYER_SIZE);
             iv.setFitHeight(GameConstants.PLAYER_SIZE);
-            rp = new RemotePlayer(id, nick, color, iv, x, y, PlayerStatus.ALIVE);
-            remotePlayers.put(id, rp);
-            gamePane.getChildren().addAll(iv, rp.nameTag);
+            rp = new RemotePlayer(id,nick,color,iv,x,y,PlayerStatus.ALIVE);
+            remotePlayers.put(id,rp);
+            gamePane.getChildren().addAll(iv,rp.nameTag);
         } else {
-            rp.nick = nick;
-            rp.color = color;
-            rp.nameTag.setText(nick);
-            try {
-                Image img = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/" + color + ".png"));
-                rp.view.setImage(img);
-            } catch (Exception ignored) {}
+            rp.nick = nick; rp.color=color; rp.nameTag.setText(nick);
+            try { rp.view.setImage(new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/"+color+".png"))); }
+            catch(Exception ignored){}
         }
     }
 
-    private void handleMove(Message.Parsed parsed) {
+    private void handleMove(Message.Parsed parsed){
         String id = parsed.payload.get("id");
-        if (id.equals(myId)) return; // 本地自己由本地输入发送并控制
-        double x = Double.parseDouble(parsed.payload.getOrDefault("x", "0"));
-        double y = Double.parseDouble(parsed.payload.getOrDefault("y", "0"));
+        if(id.equals(myId)) return;
+        double x = Double.parseDouble(parsed.payload.getOrDefault("x","0"));
+        double y = Double.parseDouble(parsed.payload.getOrDefault("y","0"));
         RemotePlayer rp = remotePlayers.get(id);
-        if (rp != null) { rp.x = x; rp.y = y; } // 只更新数据，渲染在 AnimationTimer 中
+        if(rp!=null){ rp.x=x; rp.y=y;  }
     }
 
-    private void handleLeave(Message.Parsed parsed) {
+    private void handleLeave(Message.Parsed parsed){
         String id = parsed.payload.get("id");
         RemotePlayer rp = remotePlayers.remove(id);
-        if (rp != null) gamePane.getChildren().removeAll(rp.view, rp.nameTag);
+        if(rp!=null){
+            gamePane.getChildren().removeAll(rp.view,rp.nameTag);
+            System.out.println("[DEBUG] Player left: "+id);
+        }
     }
 
-    private void handleChat(Message.Parsed parsed) {
+    private void handleChat(Message.Parsed parsed){
         String id = parsed.payload.get("id");
-        String nick = parsed.payload.getOrDefault("nick", "P");
-        String color = parsed.payload.getOrDefault("color", "green");
-        String msg = parsed.payload.getOrDefault("msg", "");
-        chatPane.addMessage(nick, color, msg, id.equals(myId));
+        String nick = parsed.payload.getOrDefault("nick","P");
+        String color = parsed.payload.getOrDefault("color","green");
+        String msg = parsed.payload.getOrDefault("msg","");
+        chatPane.addMessage(nick,color,msg,id.equals(myId));
+        System.out.println("[DEBUG] Chat from "+nick+": "+msg);
     }
 
-    private void showEliminatedOverlay() {
-        if (eliminatedOverlay != null) return;
+    private void showEliminatedOverlay(){
+        if(eliminatedOverlay!=null) return;
         eliminatedOverlay = new Label("你已出局");
         eliminatedOverlay.setStyle("-fx-font-size: 36px; -fx-text-fill: white; -fx-background-color: rgba(0,0,0,0.7); -fx-padding:20; -fx-background-radius:8;");
         addNodeToTop(eliminatedOverlay);
-        eliminatedOverlay.setLayoutX((getSceneWidth() - 300) / 2);
-        eliminatedOverlay.setLayoutY((getSceneHeight() - 80) / 2);
+        eliminatedOverlay.setLayoutX((getSceneWidth()-300)/2);
+        eliminatedOverlay.setLayoutY((getSceneHeight()-80)/2);
     }
 
     private static class RemotePlayer {
-        String id, nick;
-        String color;
+        String id,nick,color;
         ImageView view;
         Label nameTag;
-        double x, y;
-        PlayerStatus status = PlayerStatus.ALIVE;
+        double x,y;
+        PlayerStatus status=PlayerStatus.ALIVE;
 
-        RemotePlayer(String id, String nick, String color, ImageView v, double x, double y, PlayerStatus status) {
-            this.id = id;
-            this.nick = nick;
-            this.color = color;
-            this.view = v;
-            this.x = x;
-            this.y = y;
+        RemotePlayer(String id,String nick,String color,ImageView v,double x,double y,PlayerStatus status){
+            this.id=id; this.nick=nick; this.color=color; this.view=v;
+            this.x=x; this.y=y;
             this.nameTag = new Label(nick);
             this.nameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
-            this.status = status;
+            this.status=status;
         }
 
-        public void setStatus(PlayerStatus playerStatus) {
-            this.status = playerStatus;
-            if (playerStatus == PlayerStatus.DEAD) {
-                view.setOpacity(0.4); // 半透明
+        public void setStatus(PlayerStatus playerStatus){
+            this.status=playerStatus;
+            if(playerStatus==PlayerStatus.DEAD){
+                view.setOpacity(0.4);
                 nameTag.setStyle("-fx-text-fill: gray;");
             } else {
-                view.setOpacity(1.0); // 恢复正常
+                view.setOpacity(1.0);
                 nameTag.setStyle("-fx-text-fill: black;");
             }
         }
 
-        public Node getView() {
-            return view;
-        }
+        public Node getView(){ return view; }
     }
 }

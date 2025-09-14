@@ -37,6 +37,13 @@ public class Player {
         }
     }
 
+    public void setPosition(double newX, double newY) {
+        this.x = newX;
+        this.y = newY;
+        updateView();
+    }
+
+
     public boolean isAlive() {
         return status == PlayerStatus.ALIVE;
     }

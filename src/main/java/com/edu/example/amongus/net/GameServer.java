@@ -11,21 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * 多人服务器（阻塞IO，每连接一个线程）——增加了“会议（讨论+投票）”流程支持
- *
- * 协议（摘要）：
- * - JOIN: 客户端加入（payload: id, nick, color, x, y）
- * - MOVE: 客户位移广播（payload: id, x, y）
- * - CHAT: 聊天广播（payload: id, msg）
- * - REPORT: 有人举报/开会（payload: id [可选]）
- * - MEETING_DISCUSSION_START: 服务器 -> 客户（payload: duration）
- * - MEETING_VOTE_START: 服务器 -> 客户（payload: duration）
- * - VOTE: 客户 -> 服务器（payload: voter, target）
- * - VOTE_UPDATE: 服务器 -> 客户（每收到一票时广播）
- * - VOTE_RESULT: 服务器 -> 客户（payload: votedOut, optional: counts...）
- * - DEAD: 服务器 -> 客户（payload: id）  ✅ 新增，通知某个玩家出局
- */
 public class GameServer {
     private final int port;
     private ServerSocket serverSocket;
@@ -67,7 +52,7 @@ public class GameServer {
         }
     }
 
-    // ✅ 结算投票结果
+    // ✅ 投票结算
     private synchronized void finalizeMeeting() {
         Map<String, Integer> tally = new HashMap<>();
         for (String target : currentVotes.values()) {
@@ -105,12 +90,11 @@ public class GameServer {
 
         broadcastRaw(Message.build("VOTE_RESULT", payload));
 
-        // ✅ 若有玩家出局，修改状态并广播 DEAD
+        // ✅ 只淘汰一个玩家，不影响其他玩家
         if (votedOut != null && !votedOut.isEmpty()) {
             PlayerInfo pi = gameState.getPlayer(votedOut);
             if (pi != null) {
-                // 使用你 PlayerInfo 中存在的方法：setAlive(false)
-                pi.setAlive(false);
+                pi.setAlive(false); // 只修改该玩家
                 Map<String, String> deadPayload = new HashMap<>();
                 deadPayload.put("id", votedOut);
                 broadcastRaw(Message.build("DEAD", deadPayload));
@@ -216,8 +200,10 @@ public class GameServer {
 
                     this.playerId = id;
                     PlayerInfo pi = new PlayerInfo(id, nick, color, x, y);
+                    pi.setAlive(true); // 默认活着
                     gameState.addOrUpdatePlayer(pi);
 
+                    // 把已存在的玩家发给新加入的
                     synchronized (clients) {
                         for (ClientHandler ch : clients) {
                             if (ch.playerId == null || ch.playerId.equals(id)) continue;
@@ -249,9 +235,17 @@ public class GameServer {
                     double x = Double.parseDouble(m.payload.getOrDefault("x", "0"));
                     double y = Double.parseDouble(m.payload.getOrDefault("y", "0"));
                     PlayerInfo pi = gameState.getPlayer(id);
-                    if (pi != null) { pi.setX(x); pi.setY(y); }
-                    else gameState.addOrUpdatePlayer(new PlayerInfo(id, "Player", "green", x, y));
-                    broadcastRaw(rawLine);
+
+                    // ✅ 只屏蔽死亡玩家，活着的照常广播
+                    if (pi != null) {
+                        if (pi.isAlive()) {
+                            pi.setX(x);
+                            pi.setY(y);
+                            broadcastRaw(rawLine);
+                        } else {
+                            System.out.println("忽略死亡玩家的移动: " + id);
+                        }
+                    }
                     break;
                 }
                 case "CHAT": {
@@ -310,6 +304,6 @@ public class GameServer {
     }
 
     public static void main(String[] args) throws Exception {
-        new GameServer(55555).start();
+        new GameServer(33333).start();
     }
 }
