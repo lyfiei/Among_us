@@ -72,7 +72,7 @@ public class GameApp {
     private Button reportBtn;
     private Label eliminatedOverlay = null;
 
-    private MiniMap miniMap; // 小地图
+    //private MiniMap miniMap; // 小地图
     private Image goodMapBg; // 好人小地图背景
     private Image evilMapBg; // 坏人小地图背景
     private Image playerIcon; // 玩家头像
