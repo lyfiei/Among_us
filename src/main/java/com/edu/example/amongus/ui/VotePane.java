@@ -8,6 +8,7 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -20,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 投票面板（支持显示票数）
+ * 投票面板（支持显示票数 + 倒计时 + 投票结果）
  */
 public class VotePane extends VBox {
     private final GameClient client;
@@ -162,7 +163,7 @@ public class VotePane extends VBox {
                 if (out != null) out.setDead();
             }
 
-            // 显示投票结果
+            // 显示投票结果 UI
             VBox resultBox = new VBox(8);
             resultBox.setAlignment(Pos.CENTER);
             resultBox.setStyle("-fx-background-color: rgba(0,0,0,0.8); -fx-padding: 14; -fx-background-radius:6;");
@@ -188,7 +189,10 @@ public class VotePane extends VBox {
             // 自动移除投票面板
             PauseTransition delay = new PauseTransition(Duration.seconds(4));
             delay.setOnFinished(ev -> {
-                if (getParent() instanceof Pane) ((Pane) getParent()).getChildren().remove(this);
+                Node parent = getParent();
+                if (parent instanceof Pane) {
+                    ((Pane) parent).getChildren().remove(this);
+                }
             });
             delay.play();
         });

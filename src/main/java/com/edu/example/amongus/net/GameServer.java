@@ -1,5 +1,6 @@
 package com.edu.example.amongus.net;
 
+import com.edu.example.amongus.GameManager;
 import com.edu.example.amongus.PlayerStatus;
 import com.edu.example.amongus.logic.GameState;
 import com.edu.example.amongus.logic.PlayerInfo;
@@ -13,6 +14,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GameServer {
+    private GameManager gameManager;
+
     private final int port;
     private ServerSocket serverSocket;
 
@@ -105,6 +108,9 @@ public class GameServer {
                 deadPayload.put("id", votedOut);
                 broadcastRaw(Message.build("DEAD", deadPayload));
                 System.out.println("Player " + votedOut + " 出局 (DEAD)");
+
+                // ✅ 检查游戏是否结束
+                gameManager.checkGameOver();
             }
         }
 

@@ -43,6 +43,8 @@ import static javafx.application.Platform.*;
 
 public class GameApp {
 
+    private GameManager gameManager;
+
     private final Pane gamePane;
     private final Player player;
     private final Mapp gameMap;
@@ -438,6 +440,9 @@ public class GameApp {
                     }
                 }
 
+                // ✅ 检查是否结束
+                gameManager.checkGameOver();
+
                 // 保留投票面板几秒，让玩家看到出局
                 PauseTransition delay = new PauseTransition(Duration.seconds(4)); // 4秒停留
                 delay.setOnFinished(ev -> {
@@ -474,6 +479,9 @@ public class GameApp {
                     RemotePlayer rp = remotePlayers.get(deadId);
                     if(rp != null) rp.setStatus(PlayerStatus.DEAD);
                 }
+                // ✅ 检查是否结束
+                gameManager.checkGameOver();
+
                 // 不要修改 inMeeting
                 break;
             }
@@ -546,7 +554,7 @@ public class GameApp {
             ImageView iv = new ImageView(img);
             iv.setFitWidth(GameConstants.PLAYER_SIZE);
             iv.setFitHeight(GameConstants.PLAYER_SIZE);
-            rp = new RemotePlayer(id,nick,color,iv,x,y,PlayerStatus.ALIVE);
+            rp = new RemotePlayer(id,nick,color,iv,x,y,PlayerStatus.ALIVE, RemotePlayer.PlayerType.GOOD);
             remotePlayers.put(id,rp);
             gamePane.getChildren().addAll(iv,rp.nameTag);
         } else {
@@ -593,23 +601,34 @@ public class GameApp {
     }
 
     private static class RemotePlayer {
-        String id,nick,color;
+        String id, nick, color;
         ImageView view;
         Label nameTag;
-        double x,y;
-        PlayerStatus status=PlayerStatus.ALIVE;
+        double x, y;
+        PlayerStatus status = PlayerStatus.ALIVE;
 
-        RemotePlayer(String id,String nick,String color,ImageView v,double x,double y,PlayerStatus status){
-            this.id=id; this.nick=nick; this.color=color; this.view=v;
-            this.x=x; this.y=y;
+        public enum PlayerType {
+            GOOD, EVIL
+        }
+        PlayerType type; // 好人 / 坏人
+
+        RemotePlayer(String id, String nick, String color, ImageView v, double x, double y,
+                     PlayerStatus status, PlayerType type) {
+            this.id = id;
+            this.nick = nick;
+            this.color = color;
+            this.view = v;
+            this.x = x;
+            this.y = y;
             this.nameTag = new Label(nick);
             this.nameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
-            this.status=status;
+            this.status = status;
+            this.type = type; // 存储身份
         }
 
-        public void setStatus(PlayerStatus playerStatus){
-            this.status=playerStatus;
-            if(playerStatus==PlayerStatus.DEAD){
+        public void setStatus(PlayerStatus playerStatus) {
+            this.status = playerStatus;
+            if (playerStatus == PlayerStatus.DEAD) {
                 view.setOpacity(0.4);
                 nameTag.setStyle("-fx-text-fill: gray;");
             } else {
@@ -618,9 +637,11 @@ public class GameApp {
             }
         }
 
-        public Node getView(){ return view; }
-
-    }public Pane getGamePane() {
+        public Node getView() {
+            return view;
+        }
+    }
+    public Pane getGamePane() {
         return gamePane;
     }
 }
