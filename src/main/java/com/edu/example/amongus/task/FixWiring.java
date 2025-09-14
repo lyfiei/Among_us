@@ -1,5 +1,6 @@
 package com.edu.example.amongus.task;
 
+import com.edu.example.amongus.net.NetTaskManager;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Bounds;
 import javafx.scene.Parent;
@@ -21,10 +22,18 @@ public class FixWiring implements Task{
         private boolean completed = false;
         private TaskCompleteListener listener;
         private List<Integer>index =Arrays.asList(0,1,2,3);
+        private final int totalSteps = 4;  // 总共4步
+        private int completedSteps = 0;// 已完成步数
 
+         private final NetTaskManager netTaskManager;
+
+         public FixWiring(NetTaskManager netTaskManager){
+             this.netTaskManager = netTaskManager;
+         }
     public void start() {
         if (completed || active) return;
         active = true;
+        completedSteps = 0;
 
         System.out.println("修电线任务开始！");
 
@@ -79,6 +88,27 @@ public class FixWiring implements Task{
         this.listener = listener;
     }
 
+    // ===== 新增多步任务方法 =====
+    @Override
+    public void completeOneStep() {
+        if (!active || completed) return;
+        completedSteps++;
+        if (completedSteps >= totalSteps) complete();
+    }
+
+    @Override
+    public int getTotalSteps() { return totalSteps; }
+
+    @Override
+    public int getCompletedSteps() { return completedSteps; }
+
+    @Override
+    public void setCompletedSteps(int steps) {
+        this.completedSteps = steps;
+        if (completedSteps >= totalSteps) {
+            complete();
+        }
+    }
 
     private final Color[] fixedColors = {
             Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW
