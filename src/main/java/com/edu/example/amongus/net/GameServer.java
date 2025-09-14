@@ -24,6 +24,8 @@ public class GameServer {
     private final Map<String, Integer> taskProgress = new ConcurrentHashMap<>();
     private volatile boolean meetingActive = false;
     private volatile boolean inVotePhase = false;
+    private final Map<String, Boolean> taskCompletedMap = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> taskActiveMap = new ConcurrentHashMap<>();
 
     private final Map<String, String> currentVotes = new ConcurrentHashMap<>();
 
@@ -34,6 +36,12 @@ public class GameServer {
 
     public GameServer(int port) {
         this.port = port;
+        taskCompletedMap.put("CardSwipe", false);
+        taskCompletedMap.put("Download", false);
+        taskCompletedMap.put("FixWiring", false);
+        taskActiveMap.put("CardSwipe", false);
+        taskActiveMap.put("Download", false);
+        taskActiveMap.put("FixWiring", false);
     }
 
     public void start() throws IOException {
@@ -426,6 +434,34 @@ public class GameServer {
 
                     System.out.println("[SERVER-BROADCAST] 广播 TASK_UPDATE -> "
                             + taskName + " steps=" + steps);
+                    break;
+                }
+                case "TASK_START": {
+                    String taskName = m.payload.get("taskName");
+                    String playerId = m.payload.get("playerId");
+                    // 检查任务是否已完成或已激活
+                    if (taskCompletedMap.getOrDefault(taskName, false) || taskActiveMap.getOrDefault(taskName, false)) {
+                        break; // 忽略重复启动
+                    }
+                    taskActiveMap.put(taskName, true);
+                    // 广播任务开始
+                    Map<String, String> payload = new HashMap<>();
+                    payload.put("taskName", taskName);
+                    payload.put("playerId", playerId);
+                    broadcastRaw(Message.build("TASK_STARTED", payload));
+                    break;
+                }
+                case "TASK_COMPLETE": {
+                    String taskName = m.payload.get("taskName");
+                    String playerId = m.payload.get("playerId");
+                    // 标记任务完成
+                    taskActiveMap.put(taskName, false);
+                    taskCompletedMap.put(taskName, true);
+                    // 广播任务完成
+                    Map<String, String> payload = new HashMap<>();
+                    payload.put("taskName", taskName);
+                    payload.put("playerId", playerId);
+                    broadcastRaw(Message.build("TASK_COMPLETED", payload));
                     break;
                 }
 
