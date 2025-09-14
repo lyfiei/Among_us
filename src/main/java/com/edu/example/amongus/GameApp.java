@@ -51,6 +51,8 @@ public class GameApp {
     private final ChatPane chatPane;
     private final Map<String, RemotePlayer> remotePlayers = new HashMap<>();
 
+    private GameConfig gameConfig;
+
     // meeting / vote
     private boolean inMeeting = false;
     private boolean isEliminated = false;
@@ -115,6 +117,8 @@ public class GameApp {
             payload.put("x", String.valueOf(player.getX()));
             payload.put("y", String.valueOf(player.getY()));
             client.send("JOIN", payload);
+
+            GameConfig.setJoined(true);
 
             System.out.println("[DEBUG] Connected to server as " + myNick + " (" + myId + ")");
         } catch (IOException ex) {
@@ -323,6 +327,7 @@ public class GameApp {
             case "MOVE": handleMove(parsed); break;
             case "LEAVE": handleLeave(parsed); break;
             case "CHAT": handleChat(parsed); break;
+            case "GAME_START":handleGameStart(parsed); break;
             case "MEETING_DISCUSSION_START": {
                 int duration = Integer.parseInt(parsed.payload.getOrDefault("duration","120"));
                 inMeeting = true; // 开始讨论
@@ -451,7 +456,9 @@ public class GameApp {
         if(meetingTimer != null){ meetingTimer.stop(); meetingTimer=null; }
         meetingTimerLabel.setVisible(false);
     }
-
+    private void handleGameStart(Message.Parsed parsed) {
+        gameConfig.handleServerMessage(parsed);
+    }
     private void handleJoin(Message.Parsed parsed){
         String id = parsed.payload.get("id");
         if(id.equals(myId)) return;
@@ -538,5 +545,8 @@ public class GameApp {
         }
 
         public Node getView(){ return view; }
+
+    }public Pane getGamePane() {
+        return gamePane;
     }
 }

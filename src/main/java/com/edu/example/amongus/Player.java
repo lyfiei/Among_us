@@ -12,6 +12,12 @@ public class Player {
     private final PixelReader collisionReader; // 碰撞像素读取器
     private PlayerStatus status = PlayerStatus.ALIVE;
 
+    public enum PlayerType {
+        GOOD, EVIL
+    }
+    private  PlayerType type; // 新增类型字段
+
+
     public Player(double startX, double startY, Image playerImage, PixelReader collisionReader, PlayerStatus status) {
         this.x = startX;
         this.y = startY;
@@ -20,7 +26,28 @@ public class Player {
         this.view.setFitHeight(GameConstants.PLAYER_SIZE);
         this.collisionReader = collisionReader;
         this.status = status;
+        this.type = null;
         updateView();
+    }
+
+    public Player(double startX, double startY, Image playerImage, PixelReader collisionReader) {
+        this.x = startX;
+        this.y = startY;
+        this.view = new ImageView(playerImage);
+        this.view.setFitWidth(GameConstants.PLAYER_SIZE);
+        this.view.setFitHeight(GameConstants.PLAYER_SIZE);
+        this.collisionReader = collisionReader;
+        this.type = null;
+        updateView();
+    }
+
+    public PlayerType getType() {
+        return type;
+    }
+
+    public void setType(PlayerType type) {
+        this.type = type; // GOOD / EVIL
+        // 可以根据 type 改变玩家外观或标识
     }
 
     public ImageView getView() { return view; }

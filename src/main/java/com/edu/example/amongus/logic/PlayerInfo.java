@@ -1,5 +1,6 @@
 package com.edu.example.amongus.logic;
 
+import com.edu.example.amongus.Player;
 import com.edu.example.amongus.PlayerStatus;
 
 public class PlayerInfo {
@@ -9,6 +10,9 @@ public class PlayerInfo {
     private double x;
     private double y;
     private PlayerStatus status = PlayerStatus.ALIVE; // 默认存活
+
+    private boolean alive = true;
+    private Player.PlayerType type = Player.PlayerType.GOOD;
 
     public PlayerInfo(String id, String nickname, String color, double x, double y) {
         this.id = id;
@@ -24,6 +28,7 @@ public class PlayerInfo {
     public double getX() { return x; }
     public double getY() { return y; }
     public PlayerStatus getStatus() { return status; }
+    public Player.PlayerType getType() { return type; }
 
     public void setX(double x) { this.x = x; }
     public void setY(double y) { this.y = y; }
@@ -41,4 +46,5 @@ public class PlayerInfo {
     public void setAlive(boolean b) {
         this.status = b ? PlayerStatus.ALIVE : PlayerStatus.DEAD;
     }
+    public void setType(Player.PlayerType type) { this.type = type; }
 }

@@ -23,6 +23,11 @@ public class GameServer {
 
     private final Map<String, String> currentVotes = new ConcurrentHashMap<>();
 
+    Map<String, ClientHandler> connectedPlayers = new HashMap<>();
+    List<String> waitingQueue = new ArrayList<>();
+    final int MAX_PLAYERS = 5;
+    final int NUM_EVIL = 1;
+
     public GameServer(int port) { this.port = port; }
 
     public void start() throws IOException {
@@ -188,11 +193,69 @@ public class GameServer {
                 }
             }
         }
+        private ClientHandler findClientById(String id) {
+            for (ClientHandler ch : clients) {
+                if (id.equals(ch.playerId)) return ch;
+            }
+            System.out.println("Client not found: " + id);
+            return null;
+        }
+
+        private void startGame() {
+            System.out.println("满员，开始游戏！");
+
+            // 随机分配角色：第一个坏人，其他好人
+            List<String> shuffled = new ArrayList<>(waitingQueue);
+            Collections.shuffle(shuffled);
+            String evilId = shuffled.get(0);
+
+            for (String id : shuffled) {
+                Map<String, String> rolePayload = new HashMap<>();
+                rolePayload.put("type", id.equals(evilId) ? "EVIL" : "GOOD");
+                ClientHandler ch = findClientById(id);
+                if (ch != null) {
+                    try {
+                        System.out.println("发送角色消息");
+                        ch.sendRaw(Message.build("ROLE", rolePayload)); } catch (IOException e) { e.printStackTrace(); }
+                }
+            }
+
+            // 广播游戏开始
+            for (String id : shuffled) {
+                ClientHandler ch = findClientById(id);
+                if (ch == null) {
+                    System.out.println("ch is null");
+                } else {
+                    System.out.println("ch is NOT null");
+                    String pid = ch.playerId;
+                    System.out.println("ch.playerId = " + pid);
+                }
+
+                if (ch != null && ch.playerId != null) {
+                    try {
+                        ch.sendRaw(Message.build("GAME_START", Map.of()));
+                    } catch (IOException e) { e.printStackTrace(); }
+                } else {
+                    System.out.println("找不到客户端发送 GAME_START: " + id);
+                }
+            }
+
+            waitingQueue.clear();
+        }
 
         private void handleMessage(Message.Parsed m, String rawLine) {
             switch (m.type) {
                 case "JOIN": {
                     String id = m.payload.get("id");
+                    System.out.println("收到 JOIN: " + id);
+                    if (gameState.getPlayer(id) != null) {
+                        System.out.println("重复 JOIN，忽略: " + id);
+                        break;
+                    }
+                    this.playerId = id;
+                    if (!clients.contains(this)) {
+                        clients.add(this);   // 确保放进去
+                    }
                     String nick = m.payload.getOrDefault("nick", "Player");
                     String color = m.payload.getOrDefault("color", "green");
                     double x = Double.parseDouble(m.payload.getOrDefault("x", "0"));
@@ -228,6 +291,25 @@ public class GameServer {
                     broadcastPayload.put("y", String.valueOf(y));
                     broadcastRaw(Message.build("JOIN", broadcastPayload));
                     System.out.println("Player JOIN: " + id + " nick=" + nick);
+
+                    // 2️⃣ 广播新玩家加入给所有人（包括自己）
+                    broadcastRaw(rawLine);
+                    System.out.println("Player JOIN: " + id + " nick=" + nick);
+
+                    // === 等待队列处理 ===
+                    if (!waitingQueue.contains(id)) {
+                        waitingQueue.add(id);
+                    }
+
+
+                    // 如果还没满员，不广播，只是等待
+                    if (waitingQueue.size() < MAX_PLAYERS) {
+                        break;
+                    }
+
+                    // 满员，开始游戏
+                    System.out.println("满员啦！");
+                    startGame();
                     break;
                 }
                 case "MOVE": {
@@ -255,6 +337,7 @@ public class GameServer {
                     Map<String, String> chatPayload = new HashMap<>();
                     chatPayload.put("id", id);
                     chatPayload.put("msg", msg);
+                    // 从服务器保存的 PlayerInfo 里补充 nick/color
                     if (pi != null) {
                         chatPayload.put("nick", pi.getNick());
                         chatPayload.put("color", pi.getColor());
