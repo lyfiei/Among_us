@@ -3,6 +3,7 @@ package com.edu.example.amongus.net;
 import com.edu.example.amongus.PlayerStatus;
 import com.edu.example.amongus.logic.GameState;
 import com.edu.example.amongus.logic.PlayerInfo;
+//import com.edu.example.amongus.task.TaskStatus;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -159,6 +160,7 @@ public class GameServer {
         private final BufferedWriter out;
         String playerId = null;
 
+
         public ClientHandler(Socket s) throws IOException {
             this.sock = s;
             this.in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
@@ -266,6 +268,10 @@ public class GameServer {
                     pi.setAlive(true); // 默认活着
                     gameState.addOrUpdatePlayer(pi);
 
+                    // 确保自己在 clients 列表里
+                    if (!clients.contains(this)) {
+                        clients.add(this);
+                    }
                     // 把已存在的玩家发给新加入的
                     synchronized (clients) {
                         for (ClientHandler ch : clients) {
@@ -283,6 +289,7 @@ public class GameServer {
                         }
                     }
 
+                    // 3️⃣ 广播新玩家加入给所有人（包括自己）
                     Map<String, String> broadcastPayload = new HashMap<>();
                     broadcastPayload.put("id", id);
                     broadcastPayload.put("nick", nick);
@@ -301,15 +308,20 @@ public class GameServer {
                         waitingQueue.add(id);
                     }
 
+                    // 额外广播匹配进度
+                    Map<String, String> matchPayload = new HashMap<>();
+                    matchPayload.put("current", String.valueOf(waitingQueue.size()));
+                    matchPayload.put("total", String.valueOf(MAX_PLAYERS));
+                    System.out.println("Match_UPDATE: " + id + " " + matchPayload);
+                    broadcastRaw(Message.build("MATCH_UPDATE", matchPayload));
+                    System.out.println("[SERVER] MATCH_UPDATE -> " + waitingQueue.size() + "/" + MAX_PLAYERS);
 
-                    // 如果还没满员，不广播，只是等待
-                    if (waitingQueue.size() < MAX_PLAYERS) {
-                        break;
+                    // 如果满员，开始游戏
+                    if (waitingQueue.size() >= MAX_PLAYERS) {
+                        System.out.println("满员啦！");
+                        startGame();
                     }
 
-                    // 满员，开始游戏
-                    System.out.println("满员啦！");
-                    startGame();
                     break;
                 }
                 case "MOVE": {
@@ -327,6 +339,11 @@ public class GameServer {
                         } else {
                             System.out.println("忽略死亡玩家的移动: " + id);
                         }
+                    } else {
+                        // 服务端没记录，创建临时记录
+                        pi = new PlayerInfo(id, "Player", "green", x, y);
+                        gameState.addOrUpdatePlayer(pi);
+                        broadcastRaw(rawLine);
                     }
                     break;
                 }
@@ -389,4 +406,17 @@ public class GameServer {
     public static void main(String[] args) throws Exception {
         new GameServer(33333).start();
     }
+    // 新增：只发送给指定客户端
+    private void sendRawToClient(Map<String, String> payload, String targetId, String type) throws IOException {
+        String raw = Message.build(type, payload);
+        synchronized (clients) {
+            for (ClientHandler ch : clients) {
+                if (targetId.equals(ch.playerId)) {
+                    ch.sendRaw(raw);
+                    break;
+                }
+            }
+        }
+    }
+
 }

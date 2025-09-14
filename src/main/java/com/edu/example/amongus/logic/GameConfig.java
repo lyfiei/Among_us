@@ -2,6 +2,7 @@ package com.edu.example.amongus.logic;
 
 import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
+import com.edu.example.amongus.ui.MatchUpdateListener;
 import javafx.application.Platform;
 
 import java.io.IOException;
@@ -20,6 +21,8 @@ public class GameConfig {
     private static GameClient client;
 
 
+
+
     // ====== 本地配置 ======
 
     public static String getPlayerId() {
@@ -29,18 +32,35 @@ public class GameConfig {
     public static void setPlayerId(String id) {
         playerId = id;
     }
-    public static String getPlayerName() { return playerName; }
-    public static void setPlayerName(String name) { playerName = name; }
 
-    public static String getPlayerColor() { return playerColor; }
-    public static void setPlayerColor(String color) { playerColor = color; }
+    public static String getPlayerName() {
+        return playerName;
+    }
 
-    public static String getPlayerRole() { return playerRole; }
-    public static void setPlayerRole(String role) { playerRole = role; }
+    public static void setPlayerName(String name) {
+        playerName = name;
+    }
+
+    public static String getPlayerColor() {
+        return playerColor;
+    }
+
+    public static void setPlayerColor(String color) {
+        playerColor = color;
+    }
+
+    public static String getPlayerRole() {
+        return playerRole;
+    }
+
+    public static void setPlayerRole(String role) {
+        playerRole = role;
+    }
 
     public static boolean isJoined() {
         return joined;
     }
+
     public static void setJoined(boolean value) {
         joined = value;
     }
@@ -51,28 +71,8 @@ public class GameConfig {
         client = new GameClient(host, port, GameConfig::handleServerMessage);
     }
 
-//    public static void sendJoinMessage() throws IOException {
-//        if (client == null) throw new IllegalStateException("Client not initialized");
-//        if (GameConfig.isJoined()) return;
-//
-//        Map<String, String> payload = new HashMap<>();
-//        String id = UUID.randomUUID().toString();
-//        GameConfig.setPlayerId(id);
-//
-//        payload.put("id", id);
-//        payload.put("nick", playerName);
-//        payload.put("color", playerColor);
-//        payload.put("x", "100"); // 默认初始坐标
-//        payload.put("y", "100");
-//
-//        client.send("JOIN", payload);
-//
-//        GameConfig.setJoined(true);
-//    }
 
-    //是收到服务器 GAME_START 后启动游戏
     public static void handleServerMessage(Message.Parsed parsed) {
-        System.out.println("handleServerMessage 被调用: " + parsed.type);
         if (parsed == null) return;
         switch (parsed.type) {
             case "ROLE":
@@ -91,7 +91,6 @@ public class GameConfig {
                 break;
         }
     }
-
     public static GameClient getClient() {
         return client;
     }

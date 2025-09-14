@@ -1,6 +1,8 @@
 package com.edu.example.amongus;
 
 import com.edu.example.amongus.logic.GameConfig;
+import com.edu.example.amongus.net.GameClient;
+import com.edu.example.amongus.ui.MatchUI;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -15,17 +17,23 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Main extends Application {
     private static Stage primaryStage;
     private static GameApp game;
 
+    public static Stage getPrimaryStage() {
+        return primaryStage;
+    }
+
+    /** 切换到游戏场景 */
     public static void startGameScene() {
         if (game == null) return;
         System.out.println("startGameScene called");
         Pane root = game.getGamePane();
         Scene gameScene = new Scene(root, 800, 600);
-
 
         // 让 GameApp 开始监听输入
         game.handleInput(gameScene);
@@ -53,24 +61,7 @@ public class Main extends Application {
         stage.show();
     }
 
-    /** 切换到游戏场景 */
-    public static void startGame() {
-        try {
-            Pane root = new Pane();
-            GameApp game = new GameApp(root);
-
-            Scene gameScene = new Scene(root, 800, 600);
-            game.handleInput(gameScene);
-
-            primaryStage.setScene(gameScene);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    /** 玩家点击“加入游戏”按钮时调用 */
     public static void joinGame() {
-
         // 1. 获取玩家信息
         String playerName = GameConfig.getPlayerName();
         String playerColor = GameConfig.getPlayerColor();
@@ -91,11 +82,20 @@ public class Main extends Application {
         // 5. 创建玩家对象
         Player myPlayer = new Player(startX, startY, playerImage, collisionReader);
 
-        // 6. 创建 GameApp（但不切换场景，等服务器下发 GAME_START）
+        // 6. 创建 GameApp（先不显示）
         game = new GameApp(new Pane());
 
-        //GameApp 会在收到服务器 GAME_START 消息后显示玩家和地图
+        // 7. 切换到匹配界面
+        MatchUI matchUI = new MatchUI(5); // 假设一局 8 个玩家
+        // 注册监听器，等网络层发 MATCH_UPDATE 时更新 UI
+        GameApp.setMatchUpdateListener((current, total) -> {
+            matchUI.updateMatch(current, total);
+        });
+        Scene matchScene = new Scene(matchUI, 800, 600);
+        primaryStage.setScene(matchScene);
+
     }
+
 
     public static void main(String[] args) {
         launch(args);

@@ -9,12 +9,15 @@ import com.edu.example.amongus.task.FixWiring;
 import com.edu.example.amongus.task.TaskManager;
 import com.edu.example.amongus.task.TriggerZone;
 import com.edu.example.amongus.ui.ChatPane;
+import com.edu.example.amongus.ui.MatchUI;
+import com.edu.example.amongus.ui.MatchUpdateListener;
 import com.edu.example.amongus.ui.VotePane;
 import javafx.animation.AnimationTimer;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
@@ -24,12 +27,19 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
+import javafx.stage.Stage;
 import javafx.util.Duration;
+import com.edu.example.amongus.PlayerStatus;
+
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import static javafx.application.Platform.*;
 
 public class GameApp {
 
@@ -61,6 +71,19 @@ public class GameApp {
     private Timeline meetingTimer = null;
     private Button reportBtn;
     private Label eliminatedOverlay = null;
+
+    private MiniMap miniMap; // 小地图
+    private Image goodMapBg; // 好人小地图背景
+    private Image evilMapBg; // 坏人小地图背景
+    private Image playerIcon; // 玩家头像
+
+    private MatchUI matchUI;
+    //匹配回调监听
+    private static MatchUpdateListener matchUpdateListener;
+    public static void setMatchUpdateListener(MatchUpdateListener listener) {
+        matchUpdateListener = listener;
+    }
+
 
     public GameApp(Pane pane) {
         this.gamePane = pane;
@@ -172,6 +195,50 @@ public class GameApp {
             }
         });
         gamePane.getChildren().add(reportBtn);
+
+//        // 创建 MiniMap
+//        miniMap = new MiniMap(
+//                player.getType() == Player.PlayerType.EVIL ? evilMapBg : goodMapBg,
+//                playerIcon,
+//                GameConstants.MAP_WIDTH,
+//                GameConstants.MAP_HEIGHT,
+//                200, 150
+//        );
+//
+//// 放到右上角
+//        miniMap.layoutYProperty().set(50);
+//        miniMap.layoutXProperty().bind(gamePane.widthProperty().subtract(200 + 8));
+//        gamePane.getChildren().add(miniMap);
+//
+//// 绑定玩家位置属性
+//        miniMap.bindPlayerPosition(player.xProperty(), player.yProperty());
+//
+//// 小地图按钮
+//        Button miniMapBtn = new Button("小地图");
+//        miniMapBtn.setPrefWidth(80);
+//        miniMapBtn.setPrefHeight(30);
+//
+//// 让它在聊天按钮右边：直接绑定 X 坐标
+//        miniMapBtn.layoutXProperty().bind(chatBtn.layoutXProperty().add(chatBtn.widthProperty()).add(8));
+//        miniMapBtn.setLayoutY(8); // 同一行
+//
+//        gamePane.getChildren().add(miniMapBtn);
+//        miniMapBtn.setOnAction(e -> {
+//            boolean visible = !miniMap.isVisible();
+//            miniMap.setVisible(visible);
+//            if (visible) {
+//                miniMap.toFront(); // 确保在最上层
+//            } else {
+//                gamePane.requestFocus(); // 回到游戏焦点
+//            }
+//        });
+//
+//
+//        // 添加状态栏
+//        gamePane.getChildren().add(statusBar);
+//        statusBar.setLayoutX(20);
+//        statusBar.setLayoutY(20);
+//        statusBar.toFront();
 
         // meeting timer label
         meetingTimerLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
@@ -327,7 +394,15 @@ public class GameApp {
             case "MOVE": handleMove(parsed); break;
             case "LEAVE": handleLeave(parsed); break;
             case "CHAT": handleChat(parsed); break;
-            case "GAME_START":handleGameStart(parsed); break;
+            case "GAME_START": handleGameStart(parsed); break;
+            case "MATCH_UPDATE": {
+                int current = Integer.parseInt(parsed.payload.get("current"));
+                int total = Integer.parseInt(parsed.payload.get("total"));
+                if (matchUpdateListener != null) {
+                    Platform.runLater(() -> matchUpdateListener.onMatchUpdate(current, total));
+                }
+                break;
+            }
             case "MEETING_DISCUSSION_START": {
                 int duration = Integer.parseInt(parsed.payload.getOrDefault("duration","120"));
                 inMeeting = true; // 开始讨论
@@ -378,7 +453,6 @@ public class GameApp {
 
                 break;
             }
-
             case "VOTE_UPDATE": {
                 String voter = parsed.payload.get("voter");
                 String target = parsed.payload.get("target");
@@ -437,7 +511,6 @@ public class GameApp {
         votePane.setLayoutY(60);
         votePane.toFront();
     }
-
     private void startMeetingCountdown(int seconds,String labelFormat) {
         stopMeetingCountdown();
         meetingTimerLabel.setVisible(true);
@@ -456,6 +529,7 @@ public class GameApp {
         if(meetingTimer != null){ meetingTimer.stop(); meetingTimer=null; }
         meetingTimerLabel.setVisible(false);
     }
+
     private void handleGameStart(Message.Parsed parsed) {
         gameConfig.handleServerMessage(parsed);
     }
