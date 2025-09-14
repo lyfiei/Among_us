@@ -23,17 +23,18 @@ public class GameClient {
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         this.onMessage = onMessage;
 
+        // 监听服务器广播
         listenerThread = new Thread(() -> {
             try {
                 String line;
                 while ((line = in.readLine()) != null) {
-                    System.out.println("收到原始消息: " + line); // ✅ 打印服务器发来的每条消息
                     Message.Parsed p = Message.parse(line);
-                    System.out.println("准备调用 onMessage.accept");
-                    try {
-                        onMessage.accept(p);
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
+                    if (p != null) {
+                        try {
+                            onMessage.accept(p);
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
                     }
                 }
             } catch (IOException e) {
@@ -44,6 +45,9 @@ public class GameClient {
         listenerThread.start();
     }
 
+    /**
+     * 发送消息到服务器
+     */
     public synchronized void send(String type, Map<String, String> payload) throws IOException {
         String raw = Message.build(type, payload);
         out.write(raw);
@@ -51,7 +55,12 @@ public class GameClient {
         out.flush();
     }
 
+    /**
+     * 关闭连接
+     */
     public void close() {
-        try { socket.close(); } catch (IOException ignored) {}
+        try {
+            socket.close();
+        } catch (IOException ignored) {}
     }
 }
