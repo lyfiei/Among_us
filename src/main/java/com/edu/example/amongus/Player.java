@@ -5,8 +5,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 
-import java.util.List;
-
 public class Player {
     private double x; // 玩家X坐标
     private double y; // 玩家Y坐标
@@ -14,7 +12,6 @@ public class Player {
     private final PixelReader collisionReader; // 碰撞像素读取器
     private PlayerStatus status = PlayerStatus.ALIVE;
 
-    private static final double KILL_RANGE = 50; // 可调整杀人有效范围
     public enum PlayerType {
         GOOD, EVIL
     }
@@ -72,30 +69,7 @@ public class Player {
         this.y = newY;
         updateView();
     }
-    /**
-     * 坏人杀附近的玩家
-     * @param allPlayers 当前场上所有玩家列表
-     * @return 被淘汰的玩家，如果没有则返回 null
-     */
-    public Player killNearbyPlayer(List<Player> allPlayers) {
-        if (this.type != PlayerType.EVIL) return null; // 只有坏人能杀
-        if (!this.isAlive()) return null; // 死了不能杀
 
-        for (Player target : allPlayers) {
-            if (target == this) continue;          // 跳过自己
-            if (!target.isAlive()) continue;       // 跳过已死亡玩家
-            if (target.getType() == PlayerType.EVIL) continue; // 跳过其他坏人
-
-            double distance = Math.hypot(this.x - target.getX(), this.y - target.getY());
-            if (distance <= KILL_RANGE) {
-                target.setStatus(PlayerStatus.DEAD);
-                System.out.println("Player " + target + " has been killed by " + this);
-                // TODO: 这里可以发送网络消息同步给其他客户端
-                return target; // 只杀第一个符合条件的玩家
-            }
-        }
-        return null; // 没有玩家被杀
-    }
 
     public boolean isAlive() {
         return status == PlayerStatus.ALIVE;

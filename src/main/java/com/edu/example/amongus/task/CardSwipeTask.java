@@ -1,30 +1,24 @@
 package com.edu.example.amongus.task;
 
-import com.edu.example.amongus.net.NetTaskManager;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 
-public class CardSwipeTask implements Task {
+public class CardSwipeTask implements Task {  // ✅ 实现 Task 接口
     private final Pane root;
     private ImageView card;
     private double startX;
     private long startTime;
     private Pane overlayPane;
 
+    private boolean completed = false;
     private boolean active = false;
-    private final int totalSteps;      // 总步数
-    private int completedSteps = 0;    // 已完成步数
 
     private TaskCompleteListener listener;
 
-    private final NetTaskManager netTaskManager;
-
-    public CardSwipeTask(Pane root, int totalSteps, NetTaskManager netTaskManager) {
+    public CardSwipeTask(Pane root) {
         this.root = root;
-        this.totalSteps = totalSteps;
-        this.netTaskManager = netTaskManager;
     }
 
     @Override
@@ -34,7 +28,7 @@ public class CardSwipeTask implements Task {
 
     @Override
     public boolean isCompleted() {
-        return completedSteps >= totalSteps;
+        return completed;
     }
 
     @Override
@@ -43,18 +37,8 @@ public class CardSwipeTask implements Task {
     }
 
     @Override
-    public int getTotalSteps() {
-        return totalSteps;
-    }
-
-    @Override
-    public int getCompletedSteps() {
-        return completedSteps;
-    }
-
-    @Override
     public void start() {
-        if (active || isCompleted()) return;  // 已激活或已完成就不启动
+        if (active || completed) return;  // 任务已激活或完成就不启动
         active = true;
 
         overlayPane = new Pane();
@@ -113,11 +97,9 @@ public class CardSwipeTask implements Task {
             resultLabel.setText(success ? "✅ 刷卡成功！" : "❌ 刷卡失败");
 
             active = false;
-            if (success) {
-                netTaskManager.completeOneStep("CardSwipe");
-                completedSteps++;
-                if (listener != null) listener.onTaskComplete(true);  // ✅ 回调更新状态栏
-            }
+            completed = success;  // 更新完成状态
+
+            if (listener != null) listener.onTaskComplete(success); // ✅ 回调给 TaskManager
 
             card.setX(cardMinX);  // 回到起点
             root.getChildren().remove(overlayPane);
@@ -125,24 +107,10 @@ public class CardSwipeTask implements Task {
     }
 
     @Override
-    public void complete() {
-        completedSteps = totalSteps;
+    public void complete() { // 可以被 TaskManager 手动完成
         active = false;
+        completed = true;
         if (overlayPane != null) root.getChildren().remove(overlayPane);
         if (listener != null) listener.onTaskComplete(true);
     }
-
-    public void completeOneStep() {
-        if (isCompleted()) return;
-        completedSteps++;
-        if (listener != null) listener.onTaskComplete(true);
-    }
-    @Override
-    public void setCompletedSteps(int steps) {
-        this.completedSteps = steps;
-        if (completedSteps >= totalSteps) {
-            complete();
-        }
-    }
-
 }

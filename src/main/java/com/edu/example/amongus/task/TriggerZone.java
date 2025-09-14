@@ -20,18 +20,27 @@ public class TriggerZone {
 
         // 创建矩形，只设置大小，位置用 translate
         zone = new Rectangle(zoneWidth, zoneHeight);
-        zone.setFill(Color.color(1, 1, 0, 0.25)); // 半透明黄色
-        zone.setStroke(Color.GOLD);
+        zone.setTranslateX(worldX);
+        zone.setTranslateY(worldY);
+        zone.setFill(Color.YELLOW);
         zone.setOpacity(0.25);
+        zone.setStroke(Color.GOLD);
     }
 
+    // 获取矩形视图，加到 Pane 上显示
+    public Rectangle getView() {
+        return zone;
+    }
 
-    // ----------------- 高亮 -----------------
+    // 高亮显示时调用
     public void setHighlighted(boolean highlight) {
         zone.setOpacity(highlight ? 0.6 : 0.25);
-        if (highlight) zone.toFront(); // 高亮时放到最上层
+        if (highlight) {
+            zone.toFront(); // 高亮时置顶
+        }
     }
-    // ----------------- 玩家检测 -----------------
+
+    // 世界坐标检测玩家是否进入触发区
     public boolean isPlayerInside(Player player) {
         double px = player.getX();
         double py = player.getY();
@@ -40,15 +49,10 @@ public class TriggerZone {
     }
 
 
-    // ----------------- Getter -----------------
-    public Rectangle getView() { return zone; }
+    // Getter
+    public String getTaskName() { return taskName; }
     public double getWorldX() { return worldX; }
     public double getWorldY() { return worldY; }
-    public String getTaskName() { return taskName; }
-
-    // ----------------- 更新显示位置（随地图滚动） -----------------
-    public void updatePosition(double offsetX, double offsetY) {
-        zone.setX(worldX + offsetX);
-        zone.setY(worldY + offsetY);
-    }
+    public double getWidth() { return zoneWidth; }
+    public double getHeight() { return zoneHeight; }
 }

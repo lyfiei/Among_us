@@ -6,11 +6,6 @@ public interface Task {
     boolean isActive();               // 是否正在进行
     boolean isCompleted();            // 是否完成
 
-    // —— 新增 —— 多步任务支持
-    void completeOneStep();           // 完成一个步骤
-    int getTotalSteps();              // 总步数
-    int getCompletedSteps();          // 已完成步数
-    void setCompletedSteps(int steps);
     void setTaskCompleteListener(TaskCompleteListener listener);
 
     interface TaskCompleteListener {

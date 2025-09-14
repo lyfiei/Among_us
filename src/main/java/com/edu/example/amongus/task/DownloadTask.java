@@ -1,6 +1,5 @@
 package com.edu.example.amongus.task;
 
-import com.edu.example.amongus.net.NetTaskManager;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -13,18 +12,14 @@ import javafx.stage.Stage;
 public class DownloadTask implements Task {
     private final Stage stage;
     private MediaPlayer mediaPlayer;
-    private boolean active = false;          // 是否正在进行
-    private final int totalSteps;         // 总下载次数
-    private int completedSteps = 0;       // 已完成次数
+    private boolean active = false;      // 是否正在进行
+    private boolean completed = false;   // 是否完成
     private TaskCompleteListener listener;
-    private final NetTaskManager netTaskManager;
 
-    public DownloadTask(int totalSteps,NetTaskManager netTaskManager) {
-        this.totalSteps = totalSteps;
-        this.netTaskManager = netTaskManager;
+    public DownloadTask() {
         stage = new Stage();
 
-        // 根容器
+        // 创建根容器，设置窗口大小
         Pane root = new Pane();
         root.setPrefSize(800, 600);
 
@@ -42,66 +37,48 @@ public class DownloadTask implements Task {
         MediaView mediaView = new MediaView();
         mediaView.setFitWidth(800);
         mediaView.setFitHeight(600);
-        mediaView.setVisible(false);
+        mediaView.setVisible(false); // 初始隐藏
         root.getChildren().add(mediaView);
 
         // 点击图片播放视频
-        bg.setOnMouseClicked(e -> playVideo(mediaView));
+        bg.setOnMouseClicked(e -> {
+            var videoUrl = getClass().getResource("/com/edu/example/amongus/videos/download.mp4");
+            if (videoUrl == null) {
+                System.err.println("视频文件没找到");
+                return;
+            }
+            if (mediaPlayer == null) {
+                Media media = new Media(videoUrl.toExternalForm());
+                mediaPlayer = new MediaPlayer(media);
+                mediaView.setMediaPlayer(mediaPlayer);
+            }
+            mediaView.setVisible(true);
+            mediaPlayer.stop(); // 保证可以多次点击播放
+            mediaPlayer.play();
+
+            // 播放完成后标记任务完成
+            mediaPlayer.setOnEndOfMedia(() -> complete());
+        });
 
         Scene scene = new Scene(root);
         stage.setScene(scene);
         stage.setTitle("下载任务");
     }
 
-    private void playVideo(MediaView mediaView) {
-        var videoUrl = getClass().getResource("/com/edu/example/amongus/videos/download.mp4");
-        if (videoUrl == null) {
-            System.err.println("视频文件没找到");
-            return;
-        }
-
-        if (mediaPlayer == null) {
-            Media media = new Media(videoUrl.toExternalForm());
-            mediaPlayer = new MediaPlayer(media);
-            mediaView.setMediaPlayer(mediaPlayer);
-        }
-
-        mediaView.setVisible(true);
-        mediaPlayer.stop();  // 保证可以多次点击播放
-        mediaPlayer.play();
-        active = true;
-
-        mediaPlayer.setOnEndOfMedia(() -> {
-            completeOneStep();
-            mediaView.setVisible(false);
-        });
-    }
-
     @Override
     public void start() {
-        if (active || isCompleted()) return;
+        if (active || completed) return; // 已经在做或完成就不再重复开启
         active = true;
+        completed = false;
         stage.show();
     }
 
     @Override
     public void complete() {
-        completedSteps = totalSteps;
         active = false;
+        completed = true;
         stage.close();
         if (listener != null) listener.onTaskComplete(true);
-    }
-
-    @Override
-    public void completeOneStep() {
-        if (isCompleted()) return;
-        completedSteps++;
-        active = false; // 每次播放完成后置为非活动
-        if (listener != null) listener.onTaskComplete(true);
-
-        if (isCompleted()) {
-            stage.close();
-        }
     }
 
     @Override
@@ -111,29 +88,11 @@ public class DownloadTask implements Task {
 
     @Override
     public boolean isCompleted() {
-        return completedSteps >= totalSteps;
-    }
-
-    @Override
-    public int getTotalSteps() {
-        return totalSteps;
-    }
-
-    @Override
-    public int getCompletedSteps() {
-        return completedSteps;
+        return completed;
     }
 
     @Override
     public void setTaskCompleteListener(TaskCompleteListener listener) {
         this.listener = listener;
-    }
-
-    @Override
-    public void setCompletedSteps(int steps) {
-        this.completedSteps = steps;
-        if (completedSteps >= totalSteps) {
-            complete();
-        }
     }
 }

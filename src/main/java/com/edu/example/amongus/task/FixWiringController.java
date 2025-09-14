@@ -132,21 +132,14 @@ public class FixWiringController {
                     currentLine.setEndY(rightcircle.getLayoutY());
                     connected.put(currentLeft, rightcircle);
 
-                    // ✅ 每连一条线完成一步
-                    if (logic != null) {
-                        logic.completeOneStep();
-                    }
-
-                    // 如果全部连完，关闭窗口
                     if (connected.size() == leftCircles.length) {
-                        System.out.println("所有线都连好，任务窗口关闭");
+                        System.out.println("任务完成！");
                         Stage stage = (Stage) root.getScene().getWindow();
-                        stage.close();
+                        stage.close();   // 关闭窗口
                     }
 
                     return;
                 }
-
             }
         }
         root.getChildren().remove(currentLine);
