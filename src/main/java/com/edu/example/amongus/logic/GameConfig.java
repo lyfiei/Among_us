@@ -88,8 +88,7 @@ public class GameConfig {
             case "ROLE":
                 String role = parsed.payload.get("type");
                 System.out.println("你的角色是: " + role);
-                setPlayerRole(role);
-                player.setType(role);         // ⚡ 把角色写进 Player 对象
+                setPlayerRole(role);     // ⚡ 把角色写进 Player 对象
                 break;
             case "GAME_START":
                 System.out.println("游戏开始！");

@@ -17,6 +17,7 @@ import javafx.animation.AnimationTimer;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -41,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javafx.scene.shape.Rectangle;
 
 import static javafx.application.Platform.*;
 
@@ -80,6 +82,11 @@ public class GameApp {
     private Timeline meetingTimer = null;
     private Button reportBtn;
     private Label eliminatedOverlay = null;
+
+    private Group worldGroup;  // 世界节点（地图、玩家、雾等）
+    private Pane viewPort;     // 固定视野容器
+
+
 
     private MiniMap miniMap; // 小地图
     private Image goodMapBg; // 好人小地图背景
@@ -214,7 +221,7 @@ public class GameApp {
         playerIcon = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/myicon.png"));
 
 
-        double scale = 0.4; // 缩放比例，比如 20% 尺寸
+        double scale = 0.2; // 缩放比例，比如 20% 尺寸
 
         miniMap = new MiniMap(
                 PlayerType.EVIL.equals(player.getType()) ? evilMapBg : goodMapBg,

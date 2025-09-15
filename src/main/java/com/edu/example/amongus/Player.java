@@ -134,5 +134,13 @@ public class Player {
         return true;
     }
 
+    public double getWidth() {
+        return view.getFitWidth();
+    }
+
+    public double getHeight() {
+        return view.getFitHeight();
+    }
+
     public Bounds getBounds() { return view.getBoundsInParent(); }
 }

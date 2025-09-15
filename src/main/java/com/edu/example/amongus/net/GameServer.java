@@ -20,8 +20,8 @@ public class GameServer {
     private final int port;
     private ServerSocket serverSocket;
 
-    private final List<ClientHandler> clients = Collections.synchronizedList(new ArrayList<>());
-    private final GameState gameState = new GameState();
+    private static final List<ClientHandler> clients = Collections.synchronizedList(new ArrayList<>());
+    private static final GameState gameState = new GameState();
 
     private volatile boolean meetingActive = false;
     private volatile boolean inVotePhase = false;
@@ -336,12 +336,6 @@ public class GameServer {
                     System.out.println("Match_UPDATE: " + id + " " + matchPayload);
                     try { sendRawToClient(matchPayload, id, "MATCH_UPDATE"); } catch (IOException e) { e.printStackTrace(); }
 
-                    // ✅ 单独发送给新加入玩家
-                    try {
-                        sendRawToClient(matchPayload, id, "MATCH_UPDATE");
-                    } catch (IOException e) {
-                        e.printStackTrace(); // 或者记录日志
-                    }
 
                     broadcastRaw(Message.build("MATCH_UPDATE", matchPayload));
                     System.out.println("[SERVER] MATCH_UPDATE -> " + waitingQueue.size() + "/" + MAX_PLAYERS);
