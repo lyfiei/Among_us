@@ -10,6 +10,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
 import javafx.scene.layout.Pane;
@@ -36,6 +37,7 @@ public class Main extends Application {
         System.out.println("startGameScene called");
         Pane root = game.getGamePane();
         Scene gameScene = new Scene(root, 800, 600);
+
 
         // 让 GameApp 开始监听输入
         game.handleInput(gameScene);
@@ -90,9 +92,9 @@ public class Main extends Application {
         // 7. 切换到匹配界面
         MatchUI matchUI = new MatchUI(5); // 假设 MAX_PLAYERS=5
 
-        int currentPlayers = game.getCurrent(); // 或从 GameApp/GameClient 拿
-        System.out.println("currentPlayers: " + currentPlayers);
-        matchUI.onMatchUpdate(currentPlayers, 5);
+//        int currentPlayers = game.getCurrent(); // 或从 GameApp/GameClient 拿
+//        System.out.println("currentPlayers: " + currentPlayers);
+//        matchUI.onMatchUpdate(currentPlayers, 5);
 
 // 注册监听器，网络层收到 MATCH_UPDATE 时更新 UI
         GameApp.setMatchUpdateListener((current, total) -> {
@@ -102,6 +104,7 @@ public class Main extends Application {
         Scene matchScene = new Scene(matchUI, 800, 600);
         primaryStage.setScene(matchScene);
     }
+
 
 
     public static void main(String[] args) {

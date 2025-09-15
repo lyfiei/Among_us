@@ -9,6 +9,7 @@ import com.edu.example.amongus.task.FixWiring;
 import com.edu.example.amongus.task.TaskManager;
 import com.edu.example.amongus.task.TriggerZone;
 import com.edu.example.amongus.ui.ChatPane;
+import com.edu.example.amongus.ui.PlayerActionUI;
 import com.edu.example.amongus.ui.MatchUI;
 import com.edu.example.amongus.ui.MatchUpdateListener;
 import com.edu.example.amongus.ui.VotePane;
@@ -42,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.*;
 import javafx.scene.shape.Rectangle;
 
 import static javafx.application.Platform.*;
@@ -52,6 +54,7 @@ public class GameApp {
 
     private final Pane gamePane;
     private final Player player;
+    private PlayerActionUI actionUI;
     private final Mapp gameMap;
     private final InputHandler inputHandler;
     private final TaskManager taskManager;
@@ -71,8 +74,8 @@ public class GameApp {
     private GameConfig gameConfig;
 
 
-    private int current;
-    private int total;
+    //kill
+    private Button killBtn;
 
     // meeting / vote
     private boolean inMeeting = false;
@@ -148,9 +151,19 @@ public class GameApp {
         fogCanvas = new Canvas(GameConstants.MAP_WIDTH, GameConstants.MAP_HEIGHT);
         gamePane.getChildren().add(fogCanvas);
 
+        // 生成全玩家列表（本地 + 远程）
+        List<Player> allPlayers = new ArrayList<>();
+        allPlayers.add(player); // 本地玩家
+
+        // 创建 PlayerActionUI
+        actionUI = new PlayerActionUI(player, allPlayers, gamePane);
+        this.killBtn = actionUI.getKillButton();
+        Label roleLabel = actionUI.getRoleLabel();
         // try connect server
         try {
-            this.client = new GameClient("127.0.0.1", 33333, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+            this.client = new GameClient("127.0.0.1", 22222, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+
+            player.setName(myId);
 
             Map<String, String> payload = new HashMap<>();
             payload.put("id", myId);
@@ -221,7 +234,7 @@ public class GameApp {
         playerIcon = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/myicon.png"));
 
 
-        double scale = 0.2; // 缩放比例，比如 20% 尺寸
+        double scale = 0.4; // 缩放比例，比如 20% 尺寸
 
         miniMap = new MiniMap(
                 PlayerType.EVIL.equals(player.getType()) ? evilMapBg : goodMapBg,
@@ -263,6 +276,26 @@ public class GameApp {
         gamePane.getChildren().add(miniMapBtn);
 
 
+        allPlayers.add(player); // 本地玩家
+        // RemotePlayer 目前是 RemotePlayer 类型，不能直接加入 Player
+        // 如果以后需要同步 kill，可能要做 RemotePlayer -> Player 的代理或封装
+
+        // 创建 PlayerActionUI
+        PlayerActionUI actionUI = new PlayerActionUI(player, allPlayers, gamePane);
+        Button killBtn = actionUI.getKillButton();
+        if (!gamePane.getChildren().contains(killBtn)) {
+            gamePane.getChildren().add(killBtn);
+        }
+
+        killBtn.setVisible(true); // 强制显示
+        // 右下角自适应
+        killBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(140)); // 假设按钮宽 120
+        killBtn.layoutYProperty().bind(gamePane.heightProperty().subtract(60));
+
+        // 放到最上层
+        Platform.runLater(() -> killBtn.toFront());
+
+
         // meeting timer label
         meetingTimerLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
         meetingTimerLabel.setLayoutX(12);
@@ -274,6 +307,11 @@ public class GameApp {
         gamePane.setFocusTraversable(true);
         // initial focus request (in case Scene is ready)
         Platform.runLater(() -> gamePane.requestFocus());
+    }
+
+    //kill
+    public RemotePlayer getRemotePlayerById(String id) {
+        return id == null ? null : remotePlayers.get(id);
     }
 
     private void addNodeToTop(Node node) {
@@ -323,6 +361,58 @@ public class GameApp {
                 new DownloadTask().start();
             }
         });
+
+        killBtn.setOnAction(ev -> {
+            System.out.println("[DEBUG] 点击杀人按钮");
+            System.out.println("[DEBUG] 本地玩家类型: " + player.getType());
+            System.out.println("[DEBUG] 远程玩家数量: " + remotePlayers.size());
+
+            // 打印所有远程玩家信息
+            for (RemotePlayer rp : remotePlayers.values()) {
+                System.out.println("[DEBUG] 远程玩家 " + rp.id + ": 状态=" + rp.getStatus() +
+                        ", 类型=" + rp.getType() +
+                        ", 位置=(" + rp.getX() + "," + rp.getY() + ")");
+            }
+            // 先本地检查身份 & 冷却
+            if (player.getType() != com.edu.example.amongus.Player.PlayerType.EVIL) {
+                System.out.println("[DEBUG] 你不是坏人，不能杀人");
+                return;
+            }
+            long remaining = player.getKillCooldownRemaining();
+            if (remaining > 0) {
+                System.out.println("[DEBUG] 冷却中，还剩 " + (remaining/1000) + "s");
+                return;
+            }
+            // 找最近的远程目标（也可以扩展为包含本地 other players）
+            RemotePlayer victim = findNearestRemoteWithinRange();
+            if (victim == null) {
+                System.out.println("[DEBUG] 附近没有可杀的玩家");
+                return;
+            }
+
+            // 发送网络请求给服务器（类型名统一用 "KILL"）
+            if (client != null) {
+                Map<String, String> payload = new HashMap<>();
+                payload.put("killer", myId);
+                payload.put("victim", victim.id);
+                try {
+                    client.send("KILL", payload);
+                    // 立刻进入冷却，避免多次点击（服务器确认之后我们会收到 DEAD）
+                    player.markKillUsed();
+                    System.out.println("[DEBUG] 发送 KILL -> victim=" + victim.id);
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            } else {
+                // 离线模式：直接本地处理（仅用于测试）
+                victim.setStatus(PlayerStatus.DEAD);
+                player.markKillUsed();
+                System.out.println("[DEBUG] 离线模式直接处理击杀: " + victim.id);
+            }
+            killBtn.setVisible(player.getType() == Player.PlayerType.EVIL);
+            killBtn.setDisable(false);
+        });
+
 
         scene.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
             // Debug log for key release
@@ -419,25 +509,44 @@ public class GameApp {
             case "CHAT": handleChat(parsed); break;
             case "GAME_START": handleGameStart(parsed); break;
             case "ROLE": {
-                String role = parsed.payload.get("type");
-                System.out.println("你的角色是: " + role);
-                GameConfig.setPlayerRole(role);
-                if(role.equals("GOOD")) {
-                    player.setType(Player.PlayerType.GOOD);
+                String role = parsed.payload.get("type"); // 服务器分配的角色
+                String targetId = parsed.payload.get("target"); // 玩家ID
+
+                if (role == null || targetId == null) {
+                    System.out.println("[WARN] 收到无效的ROLE消息，缺少type或target字段");
+                    break;
                 }
-                else{
-                    player.setType(Player.PlayerType.EVIL);
+
+                if (targetId.equals(myId)) {
+                    // 更新本地玩家角色
+                    player.setType(role.equalsIgnoreCase("EVIL") ? Player.PlayerType.EVIL : Player.PlayerType.GOOD);
+                    System.out.println("[DEBUG] 你被分配为: " + player.getType());
+
+                    // 更新 UI
+                    if (actionUI != null) {
+                        Platform.runLater(actionUI::updatePlayerType);
+                    }
+                } else {
+                    // 更新远程玩家角色
+                    RemotePlayer rp = remotePlayers.get(targetId);
+                    if (rp != null) {
+                        rp.type = role.equalsIgnoreCase("EVIL") ? RemotePlayer.PlayerType.EVIL : RemotePlayer.PlayerType.GOOD;
+                        System.out.printf("[DEBUG] 设置玩家 %s 角色为: %s\n", rp.nick, rp.type);
+                    } else {
+                        System.out.printf("[WARN] 找不到远程玩家 %s 来设置角色\n", targetId);
+                    }
                 }
                 break;
             }
+
             case "MATCH_UPDATE": {
                 String curStr = parsed.payload.get("current");
                 String totalStr = parsed.payload.get("total");
 
                 if (curStr != null && totalStr != null) {
-                    current = Integer.parseInt(curStr);
+                   int current = Integer.parseInt(curStr);
                     System.out.println("current: " + current);
-                    total = Integer.parseInt(totalStr);
+                   int total = Integer.parseInt(totalStr);
                     if (matchUpdateListener != null) {
                         Platform.runLater(() -> matchUpdateListener.onMatchUpdate(current, total));
                     }
@@ -505,6 +614,8 @@ public class GameApp {
                     }
                 }
 
+                // ✅ 检查是否结束
+                gameManager.checkGameOver();
 
                 // 保留投票面板几秒，让玩家看到出局
                 PauseTransition delay = new PauseTransition(Duration.seconds(4)); // 4秒停留
@@ -620,6 +731,7 @@ public class GameApp {
         votePane.setLayoutY(60);
         votePane.toFront();
     }
+
     private void startMeetingCountdown(int seconds,String labelFormat) {
         stopMeetingCountdown();
         meetingTimerLabel.setVisible(true);
@@ -649,6 +761,9 @@ public class GameApp {
         String color = parsed.payload.getOrDefault("color","green");
         double x = Double.parseDouble(parsed.payload.getOrDefault("x","0"));
         double y = Double.parseDouble(parsed.payload.getOrDefault("y","0"));
+
+        System.out.println("[DEBUG] handleJoin: id=" + id + " nick=" + nick + " at (" + x + "," + y + ")");
+
         RemotePlayer rp = remotePlayers.get(id);
         if(rp==null){
             Image img = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/"+color+".png"));
@@ -662,6 +777,7 @@ public class GameApp {
             rp.nick = nick; rp.color=color; rp.nameTag.setText(nick);
             try { rp.view.setImage(new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/"+color+".png"))); }
             catch(Exception ignored){}
+            rp.updatePosition(x, y);
         }
     }
 
@@ -670,8 +786,11 @@ public class GameApp {
         if(id.equals(myId)) return;
         double x = Double.parseDouble(parsed.payload.getOrDefault("x","0"));
         double y = Double.parseDouble(parsed.payload.getOrDefault("y","0"));
+        System.out.printf("[DEBUG] 玩家 %s 移动到 (%.1f,%.1f)\n", id, x, y);
         RemotePlayer rp = remotePlayers.get(id);
-        if(rp!=null){ rp.x=x; rp.y=y;  }
+        if(rp!=null){  rp.updatePosition(x, y);;
+        }
+        System.out.println("[DEBUG] handleMove: " + id + " -> (" + x + "," + y + ")");
     }
 
     private void handleLeave(Message.Parsed parsed){
@@ -725,6 +844,7 @@ public class GameApp {
             this.nameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
             this.status = status;
             this.type = type; // 存储身份
+
         }
 
         public void setStatus(PlayerStatus playerStatus) {
@@ -738,10 +858,70 @@ public class GameApp {
             }
         }
 
+        public double getX() { return x; }
+        public double getY() { return y; }
+        public PlayerStatus getStatus() { return status; }
+        public PlayerType getType() { return type; }
+        private void updateView() {
+            Platform.runLater(() -> {
+                view.setX(x);
+                view.setY(y);
+                if (nameTag != null) {
+                    nameTag.setLayoutX(x);
+                    nameTag.setLayoutY(y - 20);
+                }
+            });
+        }
+        public void updatePosition(double newX, double newY) {
+            this.x = newX;
+            this.y = newY;
+            updateView(); // 同步 ImageView + nameTag
+        }
         public Node getView() {
             return view;
         }
+        public String getNick() {
+            return nick;
+        }
     }
+
+    private RemotePlayer findNearestRemoteWithinRange() {
+        double range = Player.getKillRange(); // 使用 Player 中的常量，保证一致
+        RemotePlayer nearest = null;
+        double nearestDist = Double.MAX_VALUE;
+
+        double px = player.getX() + GameConstants.PLAYER_SIZE / 2.0;
+        double py = player.getY() + GameConstants.PLAYER_SIZE / 2.0;
+
+        System.out.println("[DEBUG] 本地 player center=(" + px + "," + py + "), remote count=" + remotePlayers.size());
+
+        for (RemotePlayer rp : remotePlayers.values()) {
+            if (rp == null) continue;
+            if (rp.getStatus() == PlayerStatus.DEAD) {
+                System.out.println("[DEBUG] skip dead: " + rp.id);
+                continue;
+            }
+            if (rp.getType() != RemotePlayer.PlayerType.GOOD) {
+                System.out.println("[DEBUG] skip non-good player: " + rp.id);
+                continue;
+            }
+            if (rp.id.equals(myId)) continue; // 保险起见
+            double rx = rp.getX() + GameConstants.PLAYER_SIZE / 2.0;
+            double ry = rp.getY() + GameConstants.PLAYER_SIZE / 2.0;
+            double dist = Math.hypot(px - rx, py - ry);
+
+            System.out.printf("[DEBUG] consider %s center=(%.1f,%.1f) dist=%.1f\n", rp.id, rx, ry, dist);
+
+            if (dist <= range && dist < nearestDist) {
+                nearest = rp;
+                nearestDist = dist;
+            }
+        }
+
+        System.out.println("[DEBUG] nearestCandidate=" + (nearest==null ? "null" : nearest.id) + ", dist=" + nearestDist + ", usedRange=" + range);
+        return nearest;
+    }
+
 
     public Pane getGamePane() {
         return gamePane;
@@ -751,7 +931,4 @@ public class GameApp {
         return this.client; // client 是你在 GameApp 里已有的字段
     }
 
-    public int getCurrent() {
-        return current;
-    }
 }

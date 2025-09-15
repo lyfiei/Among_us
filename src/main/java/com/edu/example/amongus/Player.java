@@ -6,12 +6,19 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 
+import java.util.List;
+
 public class Player {
     private double x; // 玩家X坐标
     private double y; // 玩家Y坐标
     private final ImageView view; // 玩家视图
     private final PixelReader collisionReader; // 碰撞像素读取器
     private PlayerStatus status = PlayerStatus.ALIVE;
+    private static final double KILL_RANGE = 200; // 可调整杀人有效范围
+    private long lastKillTime = 0;       // 上一次杀人的时间戳
+    private static final long KILL_COOLDOWN = 30000; // 冷却 30 秒
+
+    private String name; // 玩家名字，用于调试
 
     public String getId() {
         return GameConfig.getPlayerId();
@@ -54,6 +61,15 @@ public class Player {
         this.collisionReader = collisionReader;
         this.type = null;
         updateView();
+    }
+
+    // ----------------- 名字方法 -----------------
+    public void setName(String name) { this.name = name; }
+    public String getName() { return name; }
+
+    @Override
+    public String toString() {
+        return name != null ? name : super.toString();
     }
 
     public PlayerType getType() {
@@ -142,5 +158,58 @@ public class Player {
         return view.getFitHeight();
     }
 
+    // ----------------- 坏人杀人 -----------------
+    public Player killNearbyPlayer(List<Player> allPlayers) {
+        long now = System.currentTimeMillis();
+        if (this.type != PlayerType.EVIL) return null;
+        if (!this.isAlive()) return null;
+
+        long remaining = getKillCooldownRemaining();
+        if (remaining > 0) {
+            System.out.println("杀人冷却中，还剩 " + remaining/1000 + " 秒");
+            return null;
+        }
+
+        for (Player target : allPlayers) {
+            if (target == this) continue;
+            if (!target.isAlive()) continue;
+            if (target.getType() == PlayerType.EVIL) continue;
+
+            double cx1 = this.x + GameConstants.PLAYER_SIZE / 2.0;
+            double cy1 = this.y + GameConstants.PLAYER_SIZE / 2.0;
+            double cx2 = target.getX() + GameConstants.PLAYER_SIZE / 2.0;
+            double cy2 = target.getY() + GameConstants.PLAYER_SIZE / 2.0;
+            double distance = Math.hypot(cx1 - cx2, cy1 - cy2);
+
+            if (distance <= KILL_RANGE) {
+                target.setStatus(PlayerStatus.DEAD);
+                lastKillTime = now;
+                System.out.println("Player " + target + " has been killed by " + this);
+
+                return target;
+            }
+        }
+
+        System.out.println("附近没有可杀的玩家");
+        return null;
+    }
+
+    // ----------------- 杀人冷却 -----------------
+    /** 获取杀人剩余冷却时间（毫秒） */
+    public long getKillCooldownRemaining() {
+        long now = System.currentTimeMillis();
+        long remaining = KILL_COOLDOWN - (now - lastKillTime);
+        return Math.max(0, remaining);
+    }
+
+    /** 公开读取杀人判定范围（像素） */
+    public static double getKillRange() {
+        return KILL_RANGE;
+    }
+
+    /** 客户端调用：记录一次杀人（把 lastKillTime 设为当前时间） */
+    public void markKillUsed() {
+        this.lastKillTime = System.currentTimeMillis();
+    }
     public Bounds getBounds() { return view.getBoundsInParent(); }
 }

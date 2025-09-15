@@ -229,6 +229,8 @@ public class GameServer {
             for (String id : shuffled) {
                 Map<String, String> rolePayload = new HashMap<>();
                 rolePayload.put("type", id.equals(evilId) ? "EVIL" : "GOOD");
+                rolePayload.put("target", id); // 添加目标ID
+                broadcastRaw(Message.build("ROLE", rolePayload));
                 ClientHandler ch = findClientById(id);
                 if (ch != null) {
                     try {
@@ -421,6 +423,25 @@ public class GameServer {
                     if (meetingActive) finalizeMeeting();
                     break;
                 }
+                case "KILL": {
+                    String killerId = m.payload.get("killer");
+                    String victimId = m.payload.get("victim");
+                    if (victimId == null) break;
+                    PlayerInfo victim = gameState.getPlayer(victimId);
+                    if (victim != null && victim.isAlive()) {
+                        victim.setAlive(false);
+                        Map<String, String> deadPayload = new HashMap<>();
+                        deadPayload.put("id", victimId);
+                        broadcastRaw(Message.build("DEAD", deadPayload));
+                        System.out.println("[SERVER] Player " + victimId + " 被 " + killerId + " 杀死 (广播 DEAD)");
+                        // 检查游戏结束
+                        if (gameManager != null) gameManager.checkGameOver();
+                    } else {
+                        System.out.println("[SERVER] KILL 请求但目标不存在或已死: " + victimId);
+                    }
+                    break;
+                }
+
                 default:
                     broadcastRaw(rawLine);
             }
@@ -428,7 +449,7 @@ public class GameServer {
     }
 
     public static void main(String[] args) throws Exception {
-        new GameServer(33333).start();
+        new GameServer(22222).start();
     }
     // 新增：只发送给指定客户端
     private void sendRawToClient(Map<String, String> payload, String targetId, String type) throws IOException {

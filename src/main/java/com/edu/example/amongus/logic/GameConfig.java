@@ -1,5 +1,8 @@
 package com.edu.example.amongus.logic;
 
+import com.edu.example.amongus.GameApp;
+import com.edu.example.amongus.Player;
+import com.edu.example.amongus.PlayerStatus;
 import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
 import com.edu.example.amongus.ui.MatchUI;
@@ -109,8 +112,10 @@ public class GameConfig {
                     Platform.runLater(() -> matchUpdateListener.onMatchUpdate(current, total));
                 }
                 break;
+
         }
     }
+
     public static GameClient getClient() {
         return client;
     }
