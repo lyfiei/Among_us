@@ -363,7 +363,7 @@ public class GameApp {
 
         // Use event filters so keystrokes are captured even if focus briefly on controls
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-            reactorSabotage.handleKeyPress(e.getCode());
+                reactorSabotage.handleKeyPress(e.getCode());
             // Debug log for key press
             System.out.println("[DEBUG] Key pressed: " + e.getCode() + " (chat visible=" + chatPane.isVisible() + ")");
             // If chat visible, don't add to movement keys

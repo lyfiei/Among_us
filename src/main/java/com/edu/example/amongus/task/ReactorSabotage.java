@@ -98,11 +98,15 @@ public class ReactorSabotage {
     // 坏人按G键触发破坏事件
     // 使用完全限定名确保类型正确
     public void handleKeyPress(javafx.scene.input.KeyCode code) {
+        System.out.println("[DEBUG] Key: " + code +
+                ", PlayerType: " + player.getType() +
+                ", SabotageActive: " + sabotageActive);
         if (player == null) {
             System.err.println("Player is null in ReactorSabotage!");
             return;
         }
         if (code == javafx.scene.input.KeyCode.G && player.getType() == Player.PlayerType.EVIL && !sabotageActive) {
+            System.out.println("[DEBUG] Starting sabotage...");
             startSabotage();
         }
 
@@ -112,6 +116,7 @@ public class ReactorSabotage {
     }
 
     private void startSabotage() {
+        System.out.println("[DEBUG] Sabotage started!");
         sabotageActive = true;
         leftFixed = false;
         rightFixed = false;
