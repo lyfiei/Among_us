@@ -3,11 +3,8 @@ package com.edu.example.amongus;
 import com.edu.example.amongus.logic.GameConfig;
 import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
-import com.edu.example.amongus.task.CardSwipeTask;
-import com.edu.example.amongus.task.DownloadTask;
-import com.edu.example.amongus.task.FixWiring;
-import com.edu.example.amongus.task.TaskManager;
-import com.edu.example.amongus.task.TriggerZone;
+import com.edu.example.amongus.net.NetTaskManager;
+import com.edu.example.amongus.task.*;
 import com.edu.example.amongus.ui.ChatPane;
 import com.edu.example.amongus.ui.PlayerActionUI;
 import com.edu.example.amongus.ui.MatchUI;
@@ -50,13 +47,16 @@ import static javafx.application.Platform.*;
 
 public class GameApp {
 
-    private GameManager gameManager;
 
     private final Pane gamePane;
     private final Player player;
     private PlayerActionUI actionUI;
     private final Mapp gameMap;
     private final InputHandler inputHandler;
+
+    //task
+    private NetTaskManager netTaskManager;
+    private final TaskStatusBar statusBar;
     private final TaskManager taskManager;
     private CardSwipeTask cardTask;
     private DownloadTask downloadTask;
@@ -95,9 +95,6 @@ public class GameApp {
     private Image goodMapBg; // 好人小地图背景
     private Image evilMapBg; // 坏人小地图背景
     private Image playerIcon; // 玩家头像
-    public enum PlayerType {
-        GOOD, EVIL
-    }
 
     private MatchUI matchUI;
     //匹配回调监听
@@ -110,7 +107,10 @@ public class GameApp {
     public GameApp(Pane pane) {
         this.gamePane = pane;
         this.inputHandler = new InputHandler();
-        this.taskManager = new TaskManager(gamePane);
+
+        //task
+        this.statusBar = new TaskStatusBar();
+        this.taskManager = new TaskManager(gamePane, statusBar);
 
         // id/nick/color
         this.myId = UUID.randomUUID().toString();
@@ -129,20 +129,6 @@ public class GameApp {
 
         myNameTag = new Label(myNick);
         myNameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
-
-        // tasks and zones
-        cardTask = new CardSwipeTask(gamePane);
-        cardTask.setTaskCompleteListener(success -> System.out.println("[DEBUG] 刷卡完成: " + success));
-        TriggerZone cardZone = new TriggerZone(1850, 810, 320, 300, "CardSwipe");
-        taskManager.addTask(cardTask, cardZone);
-
-        downloadTask = new DownloadTask();
-        TriggerZone downloadZone = new TriggerZone(1200, 800, 80, 80, "Download");
-        taskManager.addTask(downloadTask, downloadZone);
-
-        fixWiring = new FixWiring();
-        TriggerZone fixZone = new TriggerZone(1400, 700, 80, 80, "FixWiring");
-        taskManager.addTask(fixWiring, fixZone);
 
         // add base nodes
         gamePane.getChildren().addAll(gameMap.getMapView(), player.getView(), myNameTag);
@@ -163,6 +149,9 @@ public class GameApp {
         try {
             this.client = new GameClient("127.0.0.1", 22222, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
 
+//            //task
+//            this.netTaskManager = new NetTaskManager(taskManager, client);
+
             player.setName(myId);
 
             Map<String, String> payload = new HashMap<>();
@@ -179,7 +168,29 @@ public class GameApp {
         } catch (IOException ex) {
             System.out.println("[DEBUG] 无法连接服务器（离线模式）: " + ex.getMessage());
             this.client = null;
+            this.netTaskManager = new NetTaskManager(taskManager, null);
         }
+
+        //task
+        // 注册玩家到 TaskManager
+        taskManager.setPlayer(player);
+        this.taskManager.setNetTaskManager(netTaskManager);
+        // tasks and zones
+        netTaskManager = new NetTaskManager(taskManager, client);
+        cardTask = new CardSwipeTask("CardSwipeTask",gamePane,1,netTaskManager);
+        TriggerZone cardZone = new TriggerZone(2050, 980, 200, 100, "CardSwipe");
+        taskManager.addTask(cardTask, cardZone);
+
+        downloadTask = new DownloadTask( "DownloadTask",2,netTaskManager);
+        TriggerZone downloadZone = new TriggerZone(1850, 810, 180, 80, "Download");
+        taskManager.addTask(downloadTask, downloadZone);
+
+        fixWiring = new FixWiring("FixWiring",netTaskManager);
+        TriggerZone fixZone = new TriggerZone(1100, 900, 300, 100, "FixWiring");
+        taskManager.addTask(fixWiring, fixZone);
+
+
+
 
         // chat pane
         chatPane = new ChatPane(msg -> {
@@ -228,6 +239,13 @@ public class GameApp {
         });
         gamePane.getChildren().add(reportBtn);
 
+        //task: 添加状态栏
+        gamePane.getChildren().add(statusBar);
+        statusBar.setLayoutX(20);
+        statusBar.setLayoutY(20);
+        statusBar.toFront();
+
+
         // 1️⃣ 加载小地图资源
         goodMapBg = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/minimap_good.png"));
         evilMapBg = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/minimap_evil.png"));
@@ -237,7 +255,7 @@ public class GameApp {
         double scale = 0.4; // 缩放比例，比如 20% 尺寸
 
         miniMap = new MiniMap(
-                PlayerType.EVIL.equals(player.getType()) ? evilMapBg : goodMapBg,
+                Player.PlayerType.EVIL.equals(player.getType()) ? evilMapBg : goodMapBg,
                 playerIcon,
                 GameConstants.MAP_WIDTH,   // 游戏地图宽
                 GameConstants.MAP_HEIGHT,  // 游戏地图高
@@ -349,17 +367,32 @@ public class GameApp {
                 inputHandler.press(e.getCode());
             }
             // hotkeys for tasks (allow even if chat visible? keep original behavior: no)
-            if (!chatPane.isVisible()) {
-                switch (e.getCode()) {
-                    case T -> taskManager.tryStartTask("CardSwipe");
-                    case F -> taskManager.tryStartTask("Download");
-                    case G -> taskManager.tryStartTask("FixWiring");
+            if (e.getCode() == KeyCode.F) {
+                int zoneIndex = taskManager.getCurrentZoneIndex();
+                if (zoneIndex >= 0) {
+                    String taskName = taskManager.getZones().get(zoneIndex).getTaskName();
+
+                    // 保留原有任务启动逻辑
+                    switch (taskName) {
+                        case "CardSwipe" -> cardTask.start();
+                        case "Download" -> downloadTask.start();
+                        case "FixWiring" -> fixWiring.start();
+                    }
+
+                    // 增强网络同步（添加状态检查和错误处理）
+                    try {
+                        if (netTaskManager != null) {
+                            System.out.println("[DEBUG] 同步任务进度: " + taskName); // 调试日志
+                            netTaskManager.completeOneStep(taskName);
+                        } else {
+                            System.out.println("[WARN] netTaskManager未初始化");
+                        }
+                    } catch (Exception ex) {
+                        System.err.println("[ERROR] 同步任务失败: " + ex.getMessage());
+                    }
                 }
             }
-            // keep original behavior: pressing F starts DownloadTask UI as test (you had this earlier)
-            if (e.getCode() == KeyCode.F && !chatPane.isVisible()) {
-                new DownloadTask().start();
-            }
+
         });
 
         killBtn.setOnAction(ev -> {
@@ -472,9 +505,9 @@ public class GameApp {
                 myNameTag.setLayoutX(player.getX() + offsetX);
                 myNameTag.setLayoutY(player.getY() + offsetY - 20);
 
+                // 更新task触发区位置
                 for (TriggerZone z : taskManager.getZones()) {
-                    z.getView().setX(z.getWorldX() + offsetX);
-                    z.getView().setY(z.getWorldY() + offsetY);
+                    z.updatePosition(offsetX, offsetY);
                 }
 
                 for (RemotePlayer rp : remotePlayers.values()) {
@@ -482,6 +515,16 @@ public class GameApp {
                     rp.view.setY(rp.y + offsetY);
                     rp.nameTag.setLayoutX(rp.x + offsetX);
                     rp.nameTag.setLayoutY(rp.y + offsetY - 20);
+                }
+
+                // ✅ task:每帧检测玩家是否进入触发区，高亮可按任务
+                taskManager.checkTasks(player);
+
+                // task:如果玩家进入了触发区，把矩形放到最上层（确保可见）
+                int currentZone = taskManager.getCurrentZoneIndex();
+                if (currentZone >= 0) {
+                    TriggerZone z = taskManager.getZones().get(currentZone);
+                    z.getView().toFront();
                 }
 
                 taskManager.checkTasks(player);
@@ -516,10 +559,12 @@ public class GameApp {
                     System.out.println("[WARN] 收到无效的ROLE消息，缺少type或target字段");
                     break;
                 }
+                Player.PlayerType playerType = role.equalsIgnoreCase("EVIL") ?
+                        Player.PlayerType.EVIL : Player.PlayerType.GOOD;
 
                 if (targetId.equals(myId)) {
                     // 更新本地玩家角色
-                    player.setType(role.equalsIgnoreCase("EVIL") ? Player.PlayerType.EVIL : Player.PlayerType.GOOD);
+                    player.setType(playerType);
                     System.out.println("[DEBUG] 你被分配为: " + player.getType());
 
                     // 更新 UI
@@ -530,7 +575,8 @@ public class GameApp {
                     // 更新远程玩家角色
                     RemotePlayer rp = remotePlayers.get(targetId);
                     if (rp != null) {
-                        rp.type = role.equalsIgnoreCase("EVIL") ? RemotePlayer.PlayerType.EVIL : RemotePlayer.PlayerType.GOOD;
+//                        rp.type = role.equalsIgnoreCase("EVIL") ? RemotePlayer.PlayerType.EVIL : RemotePlayer.PlayerType.GOOD;
+                        rp.type = playerType;
                         System.out.printf("[DEBUG] 设置玩家 %s 角色为: %s\n", rp.nick, rp.type);
                     } else {
                         System.out.printf("[WARN] 找不到远程玩家 %s 来设置角色\n", targetId);
@@ -648,6 +694,24 @@ public class GameApp {
                 }
 
                 // 不要修改 inMeeting
+                break;
+            }
+            //task:
+            case "TASK_UPDATE": {
+                String taskName = parsed.payload.get("taskName");
+                int completedSteps = Integer.parseInt(parsed.payload.getOrDefault("completedSteps", "0"));
+
+                // 更新本地任务状态
+                Platform.runLater(() -> {
+                    netTaskManager.onNetworkUpdate(taskName, completedSteps);
+
+                    // 更新状态栏显示
+                    TaskStatus status = taskManager.getStatusBar().getStatusByName(taskName);
+                    if (status != null) {
+                        status.setCompleted(completedSteps);
+                        taskManager.getStatusBar().updateTask(status);
+                    }
+                });
                 break;
             }
             case "GAME_OVER": {
@@ -768,7 +832,7 @@ public class GameApp {
             ImageView iv = new ImageView(img);
             iv.setFitWidth(GameConstants.PLAYER_SIZE);
             iv.setFitHeight(GameConstants.PLAYER_SIZE);
-            rp = new RemotePlayer(id,nick,color,iv,x,y,PlayerStatus.ALIVE, RemotePlayer.PlayerType.GOOD);
+            rp = new RemotePlayer(id,nick,color,iv,x,y,PlayerStatus.ALIVE, Player.PlayerType.GOOD);
             remotePlayers.put(id,rp);
             gamePane.getChildren().addAll(iv,rp.nameTag);
         } else {
@@ -825,13 +889,13 @@ public class GameApp {
         double x, y;
         PlayerStatus status = PlayerStatus.ALIVE;
 
-        public enum PlayerType {
-            GOOD, EVIL
-        }
-        PlayerType type; // 好人 / 坏人
+//        public enum PlayerType {
+//            GOOD, EVIL
+//        }
+        Player.PlayerType type; // 好人 / 坏人
 
         RemotePlayer(String id, String nick, String color, ImageView v, double x, double y,
-                     PlayerStatus status, PlayerType type) {
+                     PlayerStatus status, Player.PlayerType type) {
             this.id = id;
             this.nick = nick;
             this.color = color;
@@ -842,7 +906,6 @@ public class GameApp {
             this.nameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
             this.status = status;
             this.type = type; // 存储身份
-
         }
 
         public void setStatus(PlayerStatus playerStatus) {
@@ -859,7 +922,7 @@ public class GameApp {
         public double getX() { return x; }
         public double getY() { return y; }
         public PlayerStatus getStatus() { return status; }
-        public PlayerType getType() { return type; }
+        public Player.PlayerType getType() { return type; }
         private void updateView() {
             Platform.runLater(() -> {
                 view.setX(x);
@@ -899,7 +962,7 @@ public class GameApp {
                 System.out.println("[DEBUG] skip dead: " + rp.id);
                 continue;
             }
-            if (rp.getType() != RemotePlayer.PlayerType.GOOD) {
+            if (rp.getType() != Player.PlayerType.GOOD) {
                 System.out.println("[DEBUG] skip non-good player: " + rp.id);
                 continue;
             }

@@ -1,6 +1,7 @@
 package com.edu.example.amongus.logic;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -56,6 +57,23 @@ public class GameState {
 
     public Collection<PlayerInfo> getPlayers() {
         return players.values();
+    }
+
+    //task:
+    // 添加任务状态映射
+    private final Map<String, Integer> taskProgress = new ConcurrentHashMap<>();
+
+    // 添加任务状态管理方法
+    public synchronized void updateTaskProgress(String taskName, int completedSteps) {
+        taskProgress.put(taskName, completedSteps);
+    }
+
+    public synchronized int getTaskProgress(String taskName) {
+        return taskProgress.getOrDefault(taskName, 0);
+    }
+
+    public synchronized Map<String, Integer> getAllTaskProgress() {
+        return new HashMap<>(taskProgress);
     }
 
 }

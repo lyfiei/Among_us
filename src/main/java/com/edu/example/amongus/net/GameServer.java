@@ -1,8 +1,6 @@
 package com.edu.example.amongus.net;
 
-import com.edu.example.amongus.GameManager;
 import com.edu.example.amongus.Player;
-import com.edu.example.amongus.PlayerStatus;
 import com.edu.example.amongus.logic.GameState;
 import com.edu.example.amongus.logic.PlayerInfo;
 import com.google.gson.Gson;
@@ -16,7 +14,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GameServer {
-    private GameManager gameManager;
 
     private final int port;
     private ServerSocket serverSocket;
@@ -265,6 +262,13 @@ public class GameServer {
         private void startGame() {
             System.out.println("满员，开始游戏！");
 
+            //task:
+            // 初始化所有任务状态为0
+            gameState.updateTaskProgress("CardSwipe", 0);
+            gameState.updateTaskProgress("Download", 0);
+            gameState.updateTaskProgress("FixWiring", 0);
+
+
             // 随机分配角色：第一个坏人，其他好人
             // 随机分配角色：第一个坏人，其他好人
             List<String> shuffled = new ArrayList<>(waitingQueue);
@@ -301,8 +305,6 @@ public class GameServer {
                 p.setType(pi.getType());
                 playerList.add(p);
             }
-            // 初始化全局 GameManager
-            GameServer.this.gameManager = new GameManager(playerList);
 
             // 广播游戏开始
             for (String id : shuffled) {
@@ -405,6 +407,20 @@ public class GameServer {
                         startGame();
                     }
 
+                    //task:
+                    // 发送当前所有任务状态给新玩家
+                    Map<String, Integer> allTasks = gameState.getAllTaskProgress();
+                    for (Map.Entry<String, Integer> entry : allTasks.entrySet()) {
+                        Map<String, String> taskPayload = new HashMap<>();
+                        taskPayload.put("taskName", entry.getKey());
+                        taskPayload.put("completedSteps", String.valueOf(entry.getValue()));
+                        try {
+                            sendRawToClient(taskPayload, id, "TASK_UPDATE");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
                     break;
                 }
                 case "MOVE": {
@@ -492,10 +508,26 @@ public class GameServer {
                         broadcastRaw(Message.build("DEAD", deadPayload));
                         System.out.println("[SERVER] Player " + victimId + " 被 " + killerId + " 杀死 (广播 DEAD)");
                         // 检查游戏结束
-                        if (gameManager != null) gameManager.checkGameOver();
-                    } else {
                         System.out.println("[SERVER] KILL 请求但目标不存在或已死: " + victimId);
                     }
+                    break;
+                }
+
+                //task:
+                case "TASK_UPDATE": {
+                    String taskName = m.payload.get("taskName");
+                    int completedSteps = Integer.parseInt(m.payload.getOrDefault("completedSteps", "0"));
+
+                    // ✅ 更新全局任务状态
+                    gameState.updateTaskProgress(taskName, completedSteps);
+
+                    // 广播给所有客户端
+                    Map<String, String> taskPayload = new HashMap<>();
+                    taskPayload.put("taskName", taskName);
+                    taskPayload.put("completedSteps", String.valueOf(completedSteps));
+                    broadcastRaw(Message.build("TASK_UPDATE", taskPayload));
+
+                    System.out.println("[SERVER] TASK_UPDATE: " + taskName + " steps=" + completedSteps);
                     break;
                 }
 
