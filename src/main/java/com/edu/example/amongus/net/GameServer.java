@@ -46,7 +46,7 @@ public class GameServer {
         }
     }
 
-    private void broadcastRaw(String raw) {
+    public static void broadcastRaw(String raw) {
         synchronized (clients) {
             Iterator<ClientHandler> it = clients.iterator();
             while (it.hasNext()) {
@@ -61,6 +61,8 @@ public class GameServer {
             }
         }
     }
+
+
 
     // ✅ 投票结算
     private synchronized void finalizeMeeting() {

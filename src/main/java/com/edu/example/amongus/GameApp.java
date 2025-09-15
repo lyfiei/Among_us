@@ -12,6 +12,7 @@ import com.edu.example.amongus.ui.ChatPane;
 import com.edu.example.amongus.ui.MatchUI;
 import com.edu.example.amongus.ui.MatchUpdateListener;
 import com.edu.example.amongus.ui.VotePane;
+import com.google.gson.Gson;
 import javafx.animation.AnimationTimer;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
@@ -20,6 +21,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -36,6 +38,7 @@ import javafx.scene.layout.HBox;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -531,6 +534,31 @@ public class GameApp {
                 // 不要修改 inMeeting
                 break;
             }
+            case "GAME_OVER": {
+                String msg = parsed.payload.get("message");
+                String evilJson = parsed.payload.get("evilPlayers");
+
+                Gson gson = new Gson();
+                List<Map<String, String>> evilList = gson.fromJson(evilJson, List.class);
+
+                Platform.runLater(() -> {
+                    // 显示游戏结束弹窗
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("游戏结束");
+                    alert.setHeaderText(msg);
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("坏人玩家：\n");
+                    for (Map<String, String> info : evilList) {
+                        sb.append(info.get("nick")).append(" (").append(info.get("color")).append(")\n");
+                    }
+                    alert.setContentText(sb.toString());
+                    alert.show();
+                });
+
+                break;
+            }
+
 
             default: break;
         }

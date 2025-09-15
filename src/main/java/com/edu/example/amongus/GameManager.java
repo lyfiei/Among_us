@@ -1,6 +1,15 @@
 package com.edu.example.amongus;
 
+import com.edu.example.amongus.net.GameServer;
+
+
+import com.edu.example.amongus.net.Message;
+import com.google.gson.Gson;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 
 public class GameManager {
     private List<Player> players; // 全部玩家
@@ -36,6 +45,8 @@ public class GameManager {
         }
     }
 
+
+
     // 检查游戏是否结束
     public void checkGameOver() {
         long evilCount = players.stream()
@@ -53,8 +64,31 @@ public class GameManager {
     }
 
     // 游戏结束
+
+
     private void endGame(String message) {
         System.out.println("游戏结束：" + message);
-        // TODO: 可以加上 UI 界面提示，返回大厅等
+
+        List<Map<String, String>> evilPlayers = players.stream()
+                .filter(p -> p.getType() == Player.PlayerType.EVIL)
+                .map(p -> {
+                    Map<String, String> info = new HashMap<>();
+                    info.put("id", p.getId());
+                    info.put("nick", p.getNick());
+                    info.put("color", p.getColor());
+                    return info;
+                })
+                .toList();
+
+        Gson gson = new Gson();
+        String evilJson = gson.toJson(evilPlayers); // 转成 JSON 字符串
+
+        Map<String, String> payload = new HashMap<>();
+        payload.put("message", message);
+        payload.put("evilPlayers", evilJson);
+
+        GameServer.broadcastRaw(Message.build("GAME_OVER", payload));
     }
+
+
 }
