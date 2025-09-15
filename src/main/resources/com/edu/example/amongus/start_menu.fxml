@@ -1,25 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.lang.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.media.MediaView?>
+<?import javafx.scene.layout.StackPane?>
 
-
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/21.0.0" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.edu.example.amongus.ui.StartMenuController">
+<StackPane fx:id="rootPane" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.edu.example.amongus.ui.StartMenuController">
    <children>
-      <Button layoutX="522.0" layoutY="14.0" mnemonicParsing="false" prefHeight="17.0" prefWidth="64.0" text="退出" />
-      <Button layoutX="450.0" layoutY="14.0" mnemonicParsing="false" prefHeight="23.0" prefWidth="64.0" text="制作人员" />
-      <AnchorPane layoutX="14.0" layoutY="68.0" prefHeight="320.0" prefWidth="172.0">
+      <!-- 视频背景会在控制器里添加到这里 -->
+   
+      <AnchorPane prefHeight="600.0" prefWidth="1000.0">
          <children>
-            <TextField fx:id="nameField" layoutX="75.0" layoutY="28.0" prefHeight="23.0" prefWidth="91.0" />
-            <ImageView fx:id="characterView" fitHeight="150.0" fitWidth="110.0" layoutX="31.0" layoutY="96.0" pickOnBounds="true" preserveRatio="true" />
-            <Button layoutX="4.0" layoutY="160.0" mnemonicParsing="false" prefHeight="23.0" prefWidth="9.0" text="&lt;" onAction="#onPrev"/>
-            <Button layoutX="146.0" layoutY="160.0" mnemonicParsing="false" prefHeight="23.0" prefWidth="9.0" text="&gt;" onAction="#onNext"/>
-            <Button layoutX="59.0" layoutY="259.0" mnemonicParsing="false" text="开始游戏" onAction="#onStart"/>
-            <Button layoutX="14.0" layoutY="28.0" mnemonicParsing="false" text="名称" />
+            <Button fx:id="exitButton" layoutX="522.0" layoutY="14.0"
+                    mnemonicParsing="false" prefHeight="23.0" prefWidth="64.0"
+                    text="退出"
+                    style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white; -fx-background-radius: 15;"
+                    onAction="#onExit" />
+
+            <Button fx:id="staffButton" layoutX="450.0" layoutY="14.0"
+                    mnemonicParsing="false" prefHeight="23.0" prefWidth="64.0"
+                    text="制作人员"
+                    style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white; -fx-background-radius: 15;"
+                    onAction="#onStaff" />
+            <AnchorPane layoutX="90.0" layoutY="199.0" prefHeight="320.0" prefWidth="172.0">
+               <children>
+                  <TextField fx:id="nameField" layoutX="75.0" layoutY="28.0" prefHeight="23.0" prefWidth="91.0" style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white;"/>
+                  <ImageView fx:id="characterView" fitHeight="150.0" fitWidth="110.0" layoutX="31.0" layoutY="96.0" pickOnBounds="true" preserveRatio="true" />
+                  <Button layoutX="4.0" layoutY="160.0" mnemonicParsing="false" onAction="#onPrev" prefHeight="23.0" prefWidth="9.0" text="&lt;"
+                          style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white;" />
+                  <Button layoutX="146.0" layoutY="160.0" mnemonicParsing="false" onAction="#onNext" prefHeight="23.0" prefWidth="9.0" text="&lt;"
+                          style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white;" />
+                  <Button layoutX="59.0" layoutY="259.0" mnemonicParsing="false" onAction="#onStart" text="开始游戏"
+                          style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white;" />
+                  <Button layoutX="14.0" layoutY="28.0" mnemonicParsing="false" text="名称"
+                          style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white;" />
+               </children>
+            </AnchorPane>
          </children>
       </AnchorPane>
    </children>
-</AnchorPane>
+</StackPane>

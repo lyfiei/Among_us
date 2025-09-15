@@ -34,6 +34,9 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import com.edu.example.amongus.PlayerStatus;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
 
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
@@ -106,209 +109,480 @@ public class GameApp {
         matchUpdateListener = listener;
     }
 
+    // report button
+//        reportBtn = new Button("举报/开会");
+//        reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(160));
+//        reportBtn.setLayoutY(8);
+//        reportBtn.setOnAction(e -> {
+//            if (isEliminated) return; // 已淘汰不能举报/开会
+//            if (client != null && !inMeeting && !isEliminated) {
+//                try {
+//                    Map<String,String> pl = new HashMap<>();
+//                    pl.put("id", myId);
+//                    pl.put("discussion", "10");
+//                    pl.put("vote", "11");
+//                    client.send("REPORT", pl);
+//                    System.out.println("[DEBUG] Sent REPORT");
+//                } catch (IOException ex) { ex.printStackTrace(); }
+//            }
+//        });
+
 
     public GameApp(Pane pane) {
+
         this.gamePane = pane;
+
         this.inputHandler = new InputHandler();
+
         this.taskManager = new TaskManager(gamePane);
 
-        // id/nick/color
+
+
+// id/nick/color
+
         this.myId = UUID.randomUUID().toString();
+
         this.myNick = GameConfig.getPlayerName();
+
         if (myNick == null || myNick.isEmpty()) myNick = "P" + myId.substring(0, 4);
+
         this.myColor = GameConfig.getPlayerColor();
+
         if (myColor == null) myColor = "green";
 
-        // load resources & create player
+
+
+// load resources & create player
+
         Image mapImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/map1.png"));
+
         Image collisionImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/map2.jpg"));
+
         Image playerImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/" + myColor + ".png"));
 
+
+
         gameMap = new Mapp(mapImage, collisionImage);
+
         player = new Player(1650, 500, playerImage, gameMap.getCollisionReader(), PlayerStatus.ALIVE);
 
+
+
         myNameTag = new Label(myNick);
+
         myNameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
 
-        // tasks and zones
+
+
+// tasks and zones
+
         cardTask = new CardSwipeTask(gamePane);
+
         cardTask.setTaskCompleteListener(success -> System.out.println("[DEBUG] 刷卡完成: " + success));
+
         TriggerZone cardZone = new TriggerZone(1850, 810, 320, 300, "CardSwipe");
+
         taskManager.addTask(cardTask, cardZone);
 
+
+
         downloadTask = new DownloadTask();
+
         TriggerZone downloadZone = new TriggerZone(1200, 800, 80, 80, "Download");
+
         taskManager.addTask(downloadTask, downloadZone);
 
+
+
         fixWiring = new FixWiring();
+
         TriggerZone fixZone = new TriggerZone(1400, 700, 80, 80, "FixWiring");
+
         taskManager.addTask(fixWiring, fixZone);
 
-        // add base nodes
+
+
+// add base nodes
+
         gamePane.getChildren().addAll(gameMap.getMapView(), player.getView(), myNameTag);
 
-        // fog canvas
+
+
+// fog canvas
+
         fogCanvas = new Canvas(GameConstants.MAP_WIDTH, GameConstants.MAP_HEIGHT);
+
         gamePane.getChildren().add(fogCanvas);
 
-        // 生成全玩家列表（本地 + 远程）
+
+
+// 生成全玩家列表（本地 + 远程）
+
         List<Player> allPlayers = new ArrayList<>();
+
         allPlayers.add(player); // 本地玩家
 
-        // 创建 PlayerActionUI
+
+
+// 创建 PlayerActionUI
+
         actionUI = new PlayerActionUI(player, allPlayers, gamePane);
+
         this.killBtn = actionUI.getKillButton();
+
         Label roleLabel = actionUI.getRoleLabel();
-        // try connect server
+
+// try connect server
+
         try {
+
             this.client = new GameClient("127.0.0.1", 22222, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+
+
 
             player.setName(myId);
 
+
+
             Map<String, String> payload = new HashMap<>();
+
             payload.put("id", myId);
+
             payload.put("nick", myNick);
+
             payload.put("color", myColor);
+
             payload.put("x", String.valueOf(player.getX()));
+
             payload.put("y", String.valueOf(player.getY()));
+
             client.send("JOIN", payload);
+
+
 
             GameConfig.setJoined(true);
 
+
+
             System.out.println("[DEBUG] Connected to server as " + myNick + " (" + myId + ")");
+
         } catch (IOException ex) {
+
             System.out.println("[DEBUG] 无法连接服务器（离线模式）: " + ex.getMessage());
+
             this.client = null;
+
         }
 
-        // chat pane
+
+
+// chat pane
+
         chatPane = new ChatPane(msg -> {
+
             if (isEliminated) {
+
                 System.out.println("[DEBUG] 已淘汰，无法发送消息");
+
                 return;
+
             }
+
             if (client != null) {
+
                 try {
+
                     Map<String, String> pl = new HashMap<>();
+
                     pl.put("id", myId);
+
                     pl.put("nick", myNick);
+
                     pl.put("color", myColor);
+
                     pl.put("msg", msg);
+
                     client.send("CHAT", pl);
+
                     System.out.println("[DEBUG] Sent CHAT: " + msg);
+
                 } catch (IOException e) { e.printStackTrace(); }
+
             }
-            // 请求回到 gamePane（放到 UI 线程）
+
+// 请求回到 gamePane（放到 UI 线程）
+
             Platform.runLater(() -> {
+
                 gamePane.requestFocus();
+
             });
+
         }, myNick, myColor);
 
+
+
         addNodeToTop(chatPane);
+
         chatPane.layoutXProperty().bind(gamePane.widthProperty().subtract(320));
+
         chatPane.setLayoutY(40);
+
         chatPane.setVisible(false);
 
-        // report button
-        reportBtn = new Button("举报/开会");
-        reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(160));
-        reportBtn.setLayoutY(8);
-        reportBtn.setOnAction(e -> {
-            if (isEliminated) return; // 已淘汰不能举报/开会
-            if (client != null && !inMeeting && !isEliminated) {
-                try {
-                    Map<String,String> pl = new HashMap<>();
-                    pl.put("id", myId);
-                    pl.put("discussion", "10");
-                    pl.put("vote", "11");
-                    client.send("REPORT", pl);
-                    System.out.println("[DEBUG] Sent REPORT");
-                } catch (IOException ex) { ex.printStackTrace(); }
-            }
-        });
-        gamePane.getChildren().add(reportBtn);
 
-        // 1️⃣ 加载小地图资源
+
+
+
+
+
+
+
+// 加载图片
+
+        Image reportImage = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/report_btn.png"));
+
+        ImageView reportBtn = new ImageView(reportImage);
+
+
+
+// 保持原图大小，不缩放
+
+// reportBtn.setPreserveRatio(true); // 保持比例，可选
+
+// reportBtn.setFitWidth(100); // 设置宽度
+
+// reportBtn.setFitHeight(100); // 设置高度
+
+// // 位置：右上角
+
+// reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(reportBtn.getFitWidth()).subtract(8)); // 添加一个右侧边距
+
+// reportBtn.setLayoutY(8);
+
+
+
+// 点击事件
+
+        reportBtn.setOnMouseClicked(e -> {
+
+            if (isEliminated) return;
+
+            if (client != null && !inMeeting && !isEliminated) {
+
+                try {
+
+                    Map<String,String> pl = new HashMap<>();
+
+                    pl.put("id", myId);
+
+                    pl.put("discussion", "10");
+
+                    pl.put("vote", "11");
+
+                    client.send("REPORT", pl);
+
+                    System.out.println("[DEBUG] Sent REPORT");
+
+                } catch (IOException ex) { ex.printStackTrace(); }
+
+            }
+
+        });
+
+
+
+// 鼠标按下/松开效果
+
+        DropShadow shadow = new DropShadow(10, Color.BLACK);
+
+        reportBtn.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
+
+            reportBtn.setScaleX(0.95);
+
+            reportBtn.setScaleY(0.95);
+
+            reportBtn.setEffect(shadow);
+
+            reportBtn.setOpacity(0.8);
+
+        });
+
+        reportBtn.addEventHandler(MouseEvent.MOUSE_RELEASED, e -> {
+
+            reportBtn.setScaleX(1.0);
+
+            reportBtn.setScaleY(1.0);
+
+            reportBtn.setEffect(null);
+
+            reportBtn.setOpacity(1.0);
+
+        });
+
+
+
+// 鼠标悬停效果（可选）
+
+        reportBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e -> reportBtn.setOpacity(0.9));
+
+        reportBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e -> reportBtn.setOpacity(1.0));
+
+// 1️⃣ 加载小地图资源
+
         goodMapBg = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/minimap_good.png"));
         evilMapBg = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/minimap_evil.png"));
         playerIcon = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/myicon.png"));
 
+        double scale = 0.25; // 缩放比例，比如 20% 尺寸
 
-        double scale = 0.4; // 缩放比例，比如 20% 尺寸
 
         miniMap = new MiniMap(
+
                 PlayerType.EVIL.equals(player.getType()) ? evilMapBg : goodMapBg,
+
                 playerIcon,
-                GameConstants.MAP_WIDTH,   // 游戏地图宽
-                GameConstants.MAP_HEIGHT,  // 游戏地图高
-                GameConstants.MAP_WIDTH * scale,   // 显示宽
-                GameConstants.MAP_HEIGHT * scale   // 显示高
+
+                GameConstants.MAP_WIDTH, // 游戏地图宽
+
+                GameConstants.MAP_HEIGHT, // 游戏地图高
+
+                GameConstants.MAP_WIDTH * scale, // 显示宽
+
+                GameConstants.MAP_HEIGHT * scale // 显示高
+
         );
+
         miniMap.setVisible(false);
         gamePane.getChildren().add(miniMap);
 
 // ✅ 居中显示
+
         miniMap.layoutXProperty().bind(gamePane.widthProperty().subtract(miniMap.getPrefWidth()).divide(2));
         miniMap.layoutYProperty().bind(gamePane.heightProperty().subtract(miniMap.getPrefHeight()).divide(2));
 
+/// 加载小地图按钮图片
 
+        Image miniMapImageBtn = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/minimap_btn.png"));
+        ImageView miniMapBtn = new ImageView(miniMapImageBtn);
 
-// 3️⃣ 创建小地图按钮，放在聊天按钮右边
-        Button miniMapBtn = new Button("小地图");
-        miniMapBtn.setPrefWidth(80);
-        miniMapBtn.setPrefHeight(30);
-        miniMapBtn.layoutYProperty().set(8);
-        miniMapBtn.layoutXProperty().bind(reportBtn.layoutXProperty().add(reportBtn.widthProperty()).add(8));
+// 设置按钮大小
+        miniMapBtn.setFitWidth(80);
+        miniMapBtn.setFitHeight(80);
 
-// 4️⃣ 点击按钮显示/隐藏小地图，并在打开时更新玩家位置
-        miniMapBtn.setOnAction(e -> {
+// 将按钮放置在右上角，距离边缘 8 像素
+        miniMapBtn.setLayoutY(8);
+        miniMapBtn.layoutXProperty().bind(
+                gamePane.widthProperty().subtract(miniMapBtn.getFitWidth()).subtract(8)
+        );
+
+// 将按钮添加到游戏界面中
+        gamePane.getChildren().add(miniMapBtn);
+// 点击事件：显示/隐藏小地图，并更新玩家位置
+        miniMapBtn.setOnMouseClicked(e -> {
             boolean visible = !miniMap.isVisible();
             miniMap.setVisible(visible);
-
             if (visible) {
-                miniMap.toFront(); // 置顶
-                miniMap.updatePlayerPosition(player.getX(), player.getY()); // ✅ 懒更新玩家位置
+                miniMap.toFront(); // 先将 miniMap 置顶
+                miniMapBtn.toFront(); // 再将按钮置顶，确保它在 miniMap 之上
+                miniMap.updatePlayerPosition(player.getX(), player.getY()); // 更新玩家位置
             } else {
                 gamePane.requestFocus(); // 回到游戏焦点
             }
         });
 
-        gamePane.getChildren().add(miniMapBtn);
+// 添加按下/松开效果（可选，更像按钮）
+
+        miniMapBtn.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
+            miniMapBtn.setScaleX(0.95);
+            miniMapBtn.setScaleY(0.95);
+            miniMapBtn.setEffect(shadow);
+            miniMapBtn.setOpacity(0.8);
+        });
+
+        miniMapBtn.addEventHandler(MouseEvent.MOUSE_RELEASED, e -> {
+            miniMapBtn.setScaleX(1.0);
+            miniMapBtn.setScaleY(1.0);
+            miniMapBtn.setEffect(null);
+            miniMapBtn.setOpacity(1.0);
+        });
+
+        miniMapBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e -> miniMapBtn.setOpacity(0.9));
+        miniMapBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e -> miniMapBtn.setOpacity(1.0));
+
+
+
+
+
+
+
+
+
 
 
         allPlayers.add(player); // 本地玩家
-        // RemotePlayer 目前是 RemotePlayer 类型，不能直接加入 Player
-        // 如果以后需要同步 kill，可能要做 RemotePlayer -> Player 的代理或封装
 
-        // 创建 PlayerActionUI
+// RemotePlayer 目前是 RemotePlayer 类型，不能直接加入 Player
+
+// 如果以后需要同步 kill，可能要做 RemotePlayer -> Player 的代理或封装
+
+
+
+// 创建 PlayerActionUI
+
         PlayerActionUI actionUI = new PlayerActionUI(player, allPlayers, gamePane);
+
         Button killBtn = actionUI.getKillButton();
+
         if (!gamePane.getChildren().contains(killBtn)) {
+
             gamePane.getChildren().add(killBtn);
+
         }
 
+
+
         killBtn.setVisible(true); // 强制显示
-        // 右下角自适应
+
+// 右下角自适应
+
         killBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(140)); // 假设按钮宽 120
+
         killBtn.layoutYProperty().bind(gamePane.heightProperty().subtract(60));
 
-        // 放到最上层
+
+
+// 放到最上层
+
         Platform.runLater(() -> killBtn.toFront());
 
 
-        // meeting timer label
+
+
+
+// meeting timer label
+
         meetingTimerLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+
         meetingTimerLabel.setLayoutX(12);
+
         meetingTimerLabel.setLayoutY(8);
+
         meetingTimerLabel.setVisible(false);
+
         gamePane.getChildren().add(meetingTimerLabel);
 
-        // make gamePane focus traversable so it can receive key events
-        gamePane.setFocusTraversable(true);
-        // initial focus request (in case Scene is ready)
-        Platform.runLater(() -> gamePane.requestFocus());
-    }
 
+
+// make gamePane focus traversable so it can receive key events
+
+        gamePane.setFocusTraversable(true);
+
+// initial focus request (in case Scene is ready)
+
+        Platform.runLater(() -> gamePane.requestFocus());
+
+    }
     //kill
     public RemotePlayer getRemotePlayerById(String id) {
         return id == null ? null : remotePlayers.get(id);
@@ -433,6 +707,7 @@ public class GameApp {
             @Override
             public void handle(long now) {
                 double dx = 0, dy = 0;
+
                 if (!inMeeting && !isEliminated) {
                     if (inputHandler.isPressed(KeyCode.UP) || inputHandler.isPressed(KeyCode.W)) dy -= GameConstants.MOVEMENT_SPEED;
                     if (inputHandler.isPressed(KeyCode.DOWN) || inputHandler.isPressed(KeyCode.S)) dy += GameConstants.MOVEMENT_SPEED;
@@ -441,13 +716,10 @@ public class GameApp {
                 }
 
                 if (dx != 0 && dy != 0) { dx /= Math.sqrt(2); dy /= Math.sqrt(2); }
-
-
                 if (!inMeeting && !isEliminated) {
-                    // Try to move local player
+// Try to move local player
                     player.move(dx, dy);
-
-                    // If moved, send server update
+// If moved, send server update
                     if (client != null && (dx != 0 || dy != 0)) {
                         Map<String, String> payload = new HashMap<>();
                         payload.put("id", myId);
@@ -461,7 +733,7 @@ public class GameApp {
                     }
                 }
 
-                // camera / rendering
+// camera / rendering
                 double offsetX = -player.getX() + getSceneWidth() / 2 - GameConstants.PLAYER_SIZE / 2;
                 double offsetY = -player.getY() + getSceneHeight() / 2 - GameConstants.PLAYER_SIZE / 2;
 
@@ -476,14 +748,12 @@ public class GameApp {
                     z.getView().setX(z.getWorldX() + offsetX);
                     z.getView().setY(z.getWorldY() + offsetY);
                 }
-
                 for (RemotePlayer rp : remotePlayers.values()) {
                     rp.view.setX(rp.x + offsetX);
                     rp.view.setY(rp.y + offsetY);
                     rp.nameTag.setLayoutX(rp.x + offsetX);
                     rp.nameTag.setLayoutY(rp.y + offsetY - 20);
                 }
-
                 taskManager.checkTasks(player);
             }
         };
