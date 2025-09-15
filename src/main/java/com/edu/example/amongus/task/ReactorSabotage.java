@@ -62,6 +62,10 @@ public class ReactorSabotage {
         this.client = gameApp.getClient();
         this.player = gameApp.getPlayer();
 
+        if (this.player == null) {
+            throw new IllegalStateException("Player cannot be null in ReactorSabotage");
+        }
+
         // 创建修复区域
         this.leftFixZone = new TriggerZone(LEFT_FIX_X, LEFT_FIX_Y, FIX_ZONE_SIZE, FIX_ZONE_SIZE, "LeftReactorFix");
         this.rightFixZone = new TriggerZone(RIGHT_FIX_X, RIGHT_FIX_Y, FIX_ZONE_SIZE, FIX_ZONE_SIZE, "RightReactorFix");
@@ -94,6 +98,10 @@ public class ReactorSabotage {
     // 坏人按G键触发破坏事件
     // 使用完全限定名确保类型正确
     public void handleKeyPress(javafx.scene.input.KeyCode code) {
+        if (player == null) {
+            System.err.println("Player is null in ReactorSabotage!");
+            return;
+        }
         if (code == javafx.scene.input.KeyCode.G && player.getType() == Player.PlayerType.EVIL && !sabotageActive) {
             startSabotage();
         }

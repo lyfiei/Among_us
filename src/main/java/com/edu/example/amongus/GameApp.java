@@ -116,7 +116,6 @@ public class GameApp {
         //task
         this.statusBar = new TaskStatusBar();
         this.taskManager = new TaskManager(gamePane, statusBar);
-        this.reactorSabotage = new ReactorSabotage(this);
 
         // id/nick/color
         this.myId = UUID.randomUUID().toString();
@@ -135,6 +134,8 @@ public class GameApp {
 
         myNameTag = new Label(myNick);
         myNameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
+
+        this.reactorSabotage = new ReactorSabotage(this);
 
         // add base nodes
         gamePane.getChildren().addAll(gameMap.getMapView(), player.getView(), myNameTag);
