@@ -54,4 +54,8 @@ public class GameState {
         return maxPlayers;
     }
 
+    public Collection<PlayerInfo> getPlayers() {
+        return players.values();
+    }
+
 }

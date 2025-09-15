@@ -450,6 +450,32 @@ public class GameApp {
                 showVotePane(duration);
                 break;
             }
+            case "MEETING_END": {
+                inMeeting = false;
+
+                // 移除投票面板
+                if (votePane != null) {
+                    if (votePane.getParent() instanceof Pane parent) {
+                        parent.getChildren().remove(votePane);
+                    }
+                    votePane = null;
+                }
+
+                // 移除聊天室
+                if (chatPane != null) {
+                    if (chatPane.getParent() instanceof Pane parent) {
+                        parent.getChildren().remove(chatPane);
+                    }
+                    chatPane.setVisible(false);
+                    chatPane.setManaged(false); // ✅ 确保不挡住
+                }
+
+                System.out.println("[DEBUG] Meeting ended, UI closed.");
+                System.out.println("[DEBUG] chatPane parent = " + chatPane.getParent());
+
+                break;
+            }
+
             case "VOTE_RESULT": {
                 String votedOut = parsed.payload.getOrDefault("votedOut","");
                 if (votePane != null) votePane.showVoteResult(votedOut);
@@ -469,19 +495,12 @@ public class GameApp {
                     }
                 }
 
-                // ✅ 检查是否结束
-                gameManager.checkGameOver();
 
                 // 保留投票面板几秒，让玩家看到出局
                 PauseTransition delay = new PauseTransition(Duration.seconds(4)); // 4秒停留
                 delay.setOnFinished(ev -> {
-                    inMeeting = false;
-                    if (votePane != null && votePane.getParent() instanceof Pane) {
-                        ((Pane) votePane.getParent()).getChildren().remove(votePane);
-                    }
-                    votePane = null;
-                    chatPane.hide();
-                    stopMeetingCountdown();
+                    // 统一清理（也会设置 inMeeting=false、停止计时器等）
+                    endMeetingCleanup();
                 });
                 delay.play();
 
@@ -508,8 +527,6 @@ public class GameApp {
                     RemotePlayer rp = remotePlayers.get(deadId);
                     if(rp != null) rp.setStatus(PlayerStatus.DEAD);
                 }
-                // ✅ 检查是否结束
-                gameManager.checkGameOver();
 
                 // 不要修改 inMeeting
                 break;
@@ -520,18 +537,38 @@ public class GameApp {
     }
 
     private void endMeetingCleanup() {
-        if (votePane != null && votePane.getParent() instanceof Pane) {
-            ((Pane) votePane.getParent()).getChildren().remove(votePane);
+        // 移除投票面板
+        if (votePane != null) {
+            try {
+                votePane.stopCountdown(); // 需在 VotePane 里实现
+            } catch (Exception ignored) {}
+            if (votePane.getParent() instanceof Pane parent) {
+                parent.getChildren().remove(votePane);
+            }
+            votePane = null;
         }
-        votePane = null;
-        chatPane.hide();
+
+        // 移除聊天面板
+        if (chatPane != null) {
+            if (chatPane.getParent() instanceof Pane parent) {
+                parent.getChildren().remove(chatPane);
+            }
+            chatPane.setVisible(false);
+        }
+
         inMeeting = false;
-        stopMeetingCountdown();
-        // ensure focus returns to gamePane so keys work again
+
+        stopMeetingCountdown(); // 停止顶部倒计时
+
+        // 会议结束后，把焦点交回游戏
         Platform.runLater(() -> {
             try { gamePane.requestFocus(); } catch (Exception ignored) {}
         });
+
+        System.out.println("[DEBUG] endMeetingCleanup 完成 (inMeeting=false)");
     }
+
+
 
     private void showVotePane(int voteDuration) {
         if (votePane != null && votePane.getParent() instanceof Pane) {

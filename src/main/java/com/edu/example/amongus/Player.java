@@ -12,6 +12,8 @@ public class Player {
     private final PixelReader collisionReader; // 碰撞像素读取器
     private PlayerStatus status = PlayerStatus.ALIVE;
 
+
+
     public enum PlayerType {
         GOOD, EVIL
     }
