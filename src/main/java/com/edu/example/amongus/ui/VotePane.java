@@ -150,10 +150,22 @@ public class VotePane extends VBox {
     }
 
     /**
+     * 停止投票倒计时（移除计时器），外部在移除面板时应调用
+     */
+    public void stopCountdown() {
+        if (countdown != null) {
+            countdown.stop();
+            countdown = null;
+        }
+    }
+
+    /**
      * 显示投票结果
      */
     public void showVoteResult(String votedOutId) {
         Platform.runLater(() -> {
+            // 停掉本面板的倒计时
+            stopCountdown();
             // 禁用所有按钮
             players.values().forEach(p -> p.voteBtn.setDisable(true));
 
@@ -169,10 +181,14 @@ public class VotePane extends VBox {
             resultBox.setStyle("-fx-background-color: rgba(0,0,0,0.8); -fx-padding: 14; -fx-background-radius:6;");
 
             Label resultLabel;
+            PlayerItem out = null;
             if (votedOutId != null) {
-                PlayerItem out = players.get(votedOutId);
+                out = players.get(votedOutId);
+            }
+            if (out != null) {
+                out.setDead();
                 resultLabel = new Label(out.nick + " 被投出！");
-                if (out != null && out.avatar.getImage() != null) {
+                if (out.avatar.getImage() != null) {
                     ImageView big = new ImageView(out.avatar.getImage());
                     big.setFitWidth(64);
                     big.setFitHeight(64);
@@ -181,6 +197,7 @@ public class VotePane extends VBox {
             } else {
                 resultLabel = new Label("无人被投出");
             }
+
             resultLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: yellow;");
             resultBox.getChildren().add(resultLabel);
 

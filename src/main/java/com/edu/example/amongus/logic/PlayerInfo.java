@@ -22,6 +22,15 @@ public class PlayerInfo {
         this.y = y;
     }
 
+    public enum Role {
+        GOOD, EVIL
+    }
+    private Role role;
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
+
+
+
     public String getId() { return id; }
     public String getNickname() { return nickname; }
     public String getColor() { return color; }

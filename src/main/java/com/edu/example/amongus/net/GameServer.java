@@ -1,6 +1,7 @@
 package com.edu.example.amongus.net;
 
 import com.edu.example.amongus.GameManager;
+import com.edu.example.amongus.Player;
 import com.edu.example.amongus.PlayerStatus;
 import com.edu.example.amongus.logic.GameState;
 import com.edu.example.amongus.logic.PlayerInfo;
@@ -29,7 +30,7 @@ public class GameServer {
 
     Map<String, ClientHandler> connectedPlayers = new HashMap<>();
     List<String> waitingQueue = new ArrayList<>();
-    final int MAX_PLAYERS = 5;
+    final int MAX_PLAYERS = 3;
     final int NUM_EVIL = 1;
 
     public GameServer(int port) { this.port = port; }
@@ -112,6 +113,12 @@ public class GameServer {
                 // ✅ 检查游戏是否结束
                 gameManager.checkGameOver();
             }
+        }
+        try {
+            broadcastRaw(Message.build("MEETING_END", Map.of()));
+            System.out.println("[SERVER] Broadcast MEETING_END");
+        } catch (Exception ex) {
+            System.err.println("[SERVER] 无法广播 MEETING_END: " + ex.getMessage());
         }
 
         currentVotes.clear();
@@ -227,6 +234,14 @@ public class GameServer {
                         ch.sendRaw(Message.build("ROLE", rolePayload)); } catch (IOException e) { e.printStackTrace(); }
                 }
             }
+            List<Player> playerList = new ArrayList<>();
+            for (PlayerInfo pi : gameState.getPlayers()) {
+                Player p = new Player(pi.getX(), pi.getY(), null,null);
+                p.setType(pi.getType());
+                playerList.add(p);
+            }
+            // 初始化全局 GameManager
+            GameServer.this.gameManager = new GameManager(playerList);
 
             // 广播游戏开始
             for (String id : shuffled) {
@@ -305,9 +320,6 @@ public class GameServer {
                     broadcastRaw(Message.build("JOIN", broadcastPayload));
                     System.out.println("Player JOIN: " + id + " nick=" + nick);
 
-                    // 2️⃣ 广播新玩家加入给所有人（包括自己）
-                    broadcastRaw(rawLine);
-                    System.out.println("Player JOIN: " + id + " nick=" + nick);
 
                     // === 等待队列处理 ===
                     if (!waitingQueue.contains(id)) {
