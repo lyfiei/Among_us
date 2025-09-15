@@ -28,6 +28,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import com.edu.example.amongus.PlayerStatus;
@@ -42,9 +43,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.*;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.input.KeyCode;
 
 import static javafx.application.Platform.*;
-
+import javafx.scene.input.KeyCode;
 public class GameApp {
 
 
@@ -53,7 +55,7 @@ public class GameApp {
     private PlayerActionUI actionUI;
     private final Mapp gameMap;
     private final InputHandler inputHandler;
-
+    private final ReactorSabotage reactorSabotage;
     //task
     private NetTaskManager netTaskManager;
     private final TaskStatusBar statusBar;
@@ -61,6 +63,9 @@ public class GameApp {
     private CardSwipeTask cardTask;
     private DownloadTask downloadTask;
     private FixWiring fixWiring;
+
+    //event
+    // 类成员
 
     private final Canvas fogCanvas;
     private GameClient client;
@@ -111,6 +116,7 @@ public class GameApp {
         //task
         this.statusBar = new TaskStatusBar();
         this.taskManager = new TaskManager(gamePane, statusBar);
+        this.reactorSabotage = new ReactorSabotage(this);
 
         // id/nick/color
         this.myId = UUID.randomUUID().toString();
@@ -141,16 +147,14 @@ public class GameApp {
         List<Player> allPlayers = new ArrayList<>();
         allPlayers.add(player); // 本地玩家
 
+
         // 创建 PlayerActionUI
         actionUI = new PlayerActionUI(player, allPlayers, gamePane);
         this.killBtn = actionUI.getKillButton();
         Label roleLabel = actionUI.getRoleLabel();
         // try connect server
         try {
-            this.client = new GameClient("127.0.0.1", 22222, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
-
-//            //task
-//            this.netTaskManager = new NetTaskManager(taskManager, client);
+            this.client = new GameClient("192.168.43.124", 16789, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
 
             player.setName(myId);
 
@@ -171,6 +175,8 @@ public class GameApp {
             this.netTaskManager = new NetTaskManager(taskManager, null);
         }
 
+// 初始化
+
         //task
         // 注册玩家到 TaskManager
         taskManager.setPlayer(player);
@@ -188,8 +194,6 @@ public class GameApp {
         fixWiring = new FixWiring("FixWiring",netTaskManager);
         TriggerZone fixZone = new TriggerZone(1100, 900, 300, 100, "FixWiring");
         taskManager.addTask(fixWiring, fixZone);
-
-
 
 
         // chat pane
@@ -252,7 +256,7 @@ public class GameApp {
         playerIcon = new Image(getClass().getResourceAsStream("/com/edu/example/amongus/images/myicon.png"));
 
 
-        double scale = 0.4; // 缩放比例，比如 20% 尺寸
+        double scale = 0.2; // 缩放比例，比如 20% 尺寸
 
         miniMap = new MiniMap(
                 Player.PlayerType.EVIL.equals(player.getType()) ? evilMapBg : goodMapBg,
@@ -295,8 +299,6 @@ public class GameApp {
 
 
         allPlayers.add(player); // 本地玩家
-        // RemotePlayer 目前是 RemotePlayer 类型，不能直接加入 Player
-        // 如果以后需要同步 kill，可能要做 RemotePlayer -> Player 的代理或封装
 
         // 创建 PlayerActionUI
         PlayerActionUI actionUI = new PlayerActionUI(player, allPlayers, gamePane);
@@ -360,6 +362,7 @@ public class GameApp {
 
         // Use event filters so keystrokes are captured even if focus briefly on controls
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            reactorSabotage.handleKeyPress(e.getCode());
             // Debug log for key press
             System.out.println("[DEBUG] Key pressed: " + e.getCode() + " (chat visible=" + chatPane.isVisible() + ")");
             // If chat visible, don't add to movement keys
@@ -714,6 +717,11 @@ public class GameApp {
                 });
                 break;
             }
+            case "SABOTAGE":
+            case "REACTOR_FIX":
+            case "SABOTAGE_RESULT":
+                reactorSabotage.handleNetworkMessage(parsed);
+                break;
             case "GAME_OVER": {
                 String msg = parsed.payload.get("message");
                 String evilJson = parsed.payload.get("evilPlayers");
@@ -889,9 +897,6 @@ public class GameApp {
         double x, y;
         PlayerStatus status = PlayerStatus.ALIVE;
 
-//        public enum PlayerType {
-//            GOOD, EVIL
-//        }
         Player.PlayerType type; // 好人 / 坏人
 
         RemotePlayer(String id, String nick, String color, ImageView v, double x, double y,
@@ -992,4 +997,7 @@ public class GameApp {
         return this.client; // client 是你在 GameApp 里已有的字段
     }
 
+    public Player getPlayer() {
+        return this.player;
+    }
 }

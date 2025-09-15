@@ -7,6 +7,7 @@ import com.google.gson.Gson;
 //import com.edu.example.amongus.task.TaskStatus;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -34,7 +35,7 @@ public class GameServer {
     public GameServer(int port) { this.port = port; }
 
     public void start() throws IOException {
-        serverSocket = new ServerSocket(port);
+        serverSocket = new ServerSocket(port, 50, InetAddress.getByName("0.0.0.0"));
         System.out.println("GameServer listening on port " + port);
         while (true) {
             Socket s = serverSocket.accept();
@@ -530,6 +531,51 @@ public class GameServer {
                     System.out.println("[SERVER] TASK_UPDATE: " + taskName + " steps=" + completedSteps);
                     break;
                 }
+                // 在handleMessage方法中添加
+                case "SABOTAGE": {
+                    String sabotageType = m.payload.get("sabotage");
+                    if ("reactor".equals(sabotageType)) {
+                        // 广播给所有玩家
+                        broadcastRaw(rawLine);
+                    }
+                    break;
+                }
+
+                case "REACTOR_FIX": {
+                    String playerId = m.payload.get("player");
+                    String side = m.payload.get("side");
+
+                    // 广播修复进度
+                    Map<String, String> fixPayload = new HashMap<>();
+                    fixPayload.put("side", side);
+                    broadcastRaw(Message.build("REACTOR_FIX", fixPayload));
+                    break;
+                }
+
+                case "SABOTAGE_RESULT": {
+                    String result = m.payload.get("result");
+                    if ("fail".equals(result)) {
+                        // 游戏结束，坏人胜利
+                        Map<String, String> payload = new HashMap<>();
+                        payload.put("message", "反应堆熔毁，坏人胜利！");
+
+                        // 收集所有坏人信息
+                        List<Map<String, String>> evilPlayers = new ArrayList<>();
+                        for (PlayerInfo p : gameState.getPlayers()) {
+                            if (p.getType() == Player.PlayerType.EVIL) {
+                                Map<String, String> info = new HashMap<>();
+                                info.put("nick", p.getNick());
+                                info.put("color", p.getColor());
+                                evilPlayers.add(info);
+                            }
+                        }
+
+                        Gson gson = new Gson();
+                        payload.put("evilPlayers", gson.toJson(evilPlayers));
+                        broadcastRaw(Message.build("GAME_OVER", payload));
+                    }
+                    break;
+                }
 
                 default:
                     broadcastRaw(rawLine);
@@ -538,7 +584,7 @@ public class GameServer {
     }
 
     public static void main(String[] args) throws Exception {
-        new GameServer(22222).start();
+        new GameServer(16789).start();
     }
     // 新增：只发送给指定客户端
     private void sendRawToClient(Map<String, String> payload, String targetId, String type) throws IOException {
