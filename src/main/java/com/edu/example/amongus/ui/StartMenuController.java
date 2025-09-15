@@ -46,6 +46,8 @@ public class StartMenuController {
     private final String[] colors = {"green", "red", "blue", "yellow", "purple"};
     private int currentIndex = 0;
 
+
+
     @FXML
     public void initialize() {
         setupVideoBackground();
@@ -105,6 +107,7 @@ public class StartMenuController {
         System.out.println("选择皮肤: " + skinColor);
 
         Main.joinGame();
+
     }
 
     private void updateCharacter() {

@@ -5,6 +5,8 @@ import javafx.geometry.Bounds;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 
 import java.util.List;
 
@@ -185,6 +187,18 @@ public class Player {
                 target.setStatus(PlayerStatus.DEAD);
                 lastKillTime = now;
                 System.out.println("Player " + target + " has been killed by " + this);
+
+                // 播放杀人音效
+                try {
+                    System.out.println("播放杀人音效");
+                    String audioPath = getClass().getResource("/com/edu/example/amongus/audio/Impostor_kill.mp3").toExternalForm();
+                    Media media = new Media(audioPath);
+                    MediaPlayer mediaPlayer = new MediaPlayer(media);
+                    mediaPlayer.play();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
 
                 return target;
             }

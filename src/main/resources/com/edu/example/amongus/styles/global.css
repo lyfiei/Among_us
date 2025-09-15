@@ -1,0 +1,23 @@
+/* 根节点默认字体：中文用 ZCOOL，英文 fallback 用 Luckiest Guy */
+.root {
+    -fx-font-family: 'ZCOOL KuHei', 'Luckiest Guy', sans-serif;
+}
+
+/* 按钮特例：英文标题用 Luckiest Guy */
+.button {
+    -fx-font-family: 'Luckiest Guy', 'ZCOOL KuHei', sans-serif;
+    -fx-background-color: rgb(60,96,92);
+    -fx-text-fill: white;
+    -fx-background-radius: 15;
+    -fx-font-size: 16px;
+}
+
+/* Text 控件默认用中文字体 */
+.text {
+    -fx-font-family: 'ZCOOL KuHei', 'Luckiest Guy', sans-serif;
+}
+
+/* TextField、Label 同理 */
+.text-field, .label {
+    -fx-font-family: 'ZCOOL KuHei', 'Luckiest Guy', sans-serif;
+}

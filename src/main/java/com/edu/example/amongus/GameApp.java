@@ -5,11 +5,7 @@ import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
 import com.edu.example.amongus.net.NetTaskManager;
 import com.edu.example.amongus.task.*;
-import com.edu.example.amongus.ui.ChatPane;
-import com.edu.example.amongus.ui.PlayerActionUI;
-import com.edu.example.amongus.ui.MatchUI;
-import com.edu.example.amongus.ui.MatchUpdateListener;
-import com.edu.example.amongus.ui.VotePane;
+import com.edu.example.amongus.ui.*;
 import com.google.gson.Gson;
 import javafx.animation.AnimationTimer;
 import javafx.animation.PauseTransition;
@@ -28,6 +24,9 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import com.edu.example.amongus.PlayerStatus;
@@ -46,11 +45,15 @@ import java.util.UUID;
 import java.util.*;
 import javafx.scene.shape.Rectangle;
 
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+
+
 import static javafx.application.Platform.*;
 
 public class GameApp {
 
-    private GameManager gameManager;
+   // private GameManager gameManager;
 
     private final Pane gamePane;
     private final Player player;
@@ -103,6 +106,8 @@ public class GameApp {
     private MatchUI matchUI;
     //匹配回调监听
     private static MatchUpdateListener matchUpdateListener;
+    private StartMenuController startMenuController;
+
     public static void setMatchUpdateListener(MatchUpdateListener listener) {
         matchUpdateListener = listener;
     }
@@ -226,8 +231,10 @@ public class GameApp {
 
         // report button
         reportBtn = new Button("举报/开会");
-        reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(160));
-        reportBtn.setLayoutY(8);
+        reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(130));
+        // 添加这行代码来将按钮定位到底部
+       reportBtn.layoutYProperty().bind(gamePane.heightProperty().subtract(reportBtn.heightProperty().add(20)));
+
         reportBtn.setOnAction(e -> {
             if (isEliminated) return; // 已淘汰不能举报/开会
             if (client != null && !inMeeting && !isEliminated) {
@@ -243,42 +250,27 @@ public class GameApp {
 
         });
 
-
-
 // 鼠标按下/松开效果
-
         DropShadow shadow = new DropShadow(10, Color.BLACK);
-
         reportBtn.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
-
             reportBtn.setScaleX(0.95);
-
             reportBtn.setScaleY(0.95);
-
             reportBtn.setEffect(shadow);
-
             reportBtn.setOpacity(0.8);
 
         });
 
         reportBtn.addEventHandler(MouseEvent.MOUSE_RELEASED, e -> {
-
             reportBtn.setScaleX(1.0);
-
             reportBtn.setScaleY(1.0);
-
             reportBtn.setEffect(null);
-
             reportBtn.setOpacity(1.0);
 
         });
 
-
-
 // 鼠标悬停效果（可选）
 
         reportBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e -> reportBtn.setOpacity(0.9));
-
         reportBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e -> reportBtn.setOpacity(1.0));
 
         //task: 添加状态栏
@@ -326,7 +318,7 @@ public class GameApp {
         );
 
 // 将按钮添加到游戏界面中
-        gamePane.getChildren().add(miniMapBtn);
+        gamePane.getChildren().addAll(miniMapBtn,reportBtn);
 // 点击事件：显示/隐藏小地图，并更新玩家位置
         miniMapBtn.setOnMouseClicked(e -> {
             boolean visible = !miniMap.isVisible();
@@ -359,15 +351,6 @@ public class GameApp {
 
         miniMapBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e -> miniMapBtn.setOpacity(0.9));
         miniMapBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e -> miniMapBtn.setOpacity(1.0));
-
-
-
-
-
-
-
-
-
 
 
         allPlayers.add(player); // 本地玩家
@@ -675,12 +658,39 @@ public class GameApp {
                 break;
             }
             case "MEETING_DISCUSSION_START": {
-                int duration = Integer.parseInt(parsed.payload.getOrDefault("duration","120"));
+                int duration = Integer.parseInt(parsed.payload.getOrDefault("duration", "120"));
                 inMeeting = true; // 开始讨论
-                addNodeToTop(chatPane);
-                chatPane.show();
-                startMeetingCountdown(duration, "讨论剩余: %d s");
-                break;
+
+                    try {
+                        String videoPath = getClass().getResource("/com/edu/example/amongus/videos/meeting.mp4").toExternalForm();
+                        Media media = new Media(videoPath);
+                        MediaPlayer mediaPlayer = new MediaPlayer(media);
+                        MediaView mediaView = new MediaView(mediaPlayer);
+                        mediaView.setPreserveRatio(false);
+                        mediaView.fitWidthProperty().bind(gamePane.widthProperty());
+                        mediaView.fitHeightProperty().bind(gamePane.heightProperty());
+
+// 添加到 gamePane
+                        gamePane.getChildren().add(mediaView);
+
+// 播放结束后移除 MediaView
+                        mediaPlayer.setOnEndOfMedia(() -> {
+                            gamePane.getChildren().remove(mediaView);
+                            addNodeToTop(chatPane);
+                            chatPane.show();
+                            startMeetingCountdown(duration, "讨论剩余: %d s");
+                        });
+
+                        mediaPlayer.play();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        // 出错直接显示聊天页面
+                        addNodeToTop(chatPane);
+                        chatPane.show();
+                        startMeetingCountdown(duration, "讨论剩余: %d s");
+                    }
+
+                    break;
             }
             case "MEETING_VOTE_START": {
                 int duration = Integer.parseInt(parsed.payload.getOrDefault("duration","60"));
@@ -797,20 +807,56 @@ public class GameApp {
                 List<Map<String, String>> evilList = gson.fromJson(evilJson, List.class);
 
                 Platform.runLater(() -> {
-                    // 显示游戏结束弹窗
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setTitle("游戏结束");
-                    alert.setHeaderText(msg);
+                            // 先停止所有可能的音频播放，防止重叠
+                            if (startMenuController != null) {
+                                System.out.println("startMenuController  is not null");
+                                startMenuController.stopVideo();
+                            }
 
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("坏人玩家：\n");
-                    for (Map<String, String> info : evilList) {
-                        sb.append(info.get("nick")).append(" (").append(info.get("color")).append(")\n");
-                    }
-                    alert.setContentText(sb.toString());
-                    alert.show();
+                            // 根据消息判断是好人胜利还是失败
+                            boolean isVictory = msg.contains("好人"); // 假设消息里包含“好人”就是胜利
+
+                            // 选择正确的音频文件路径
+                            String audioPath;
+                            if (isVictory) {
+                                audioPath = getClass().getResource("/com/edu/example/amongus/audio/Crewmate_victory_music.mp3").toExternalForm();
+                            } else {
+                                audioPath = getClass().getResource("/com/edu/example/amongus/audio/Impostor_victory.mp3").toExternalForm();
+                            }
+
+                            // 创建 Media 和 MediaPlayer
+                            Media sound = new Media(audioPath);
+                            MediaPlayer mediaPlayer = new MediaPlayer(sound);
+
+                            // 设置为无限循环播放
+                            mediaPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+
+                            // 播放音频
+                            mediaPlayer.play();
+
+                            //此处记得要改结束音频
+
+//                            // 将播放器实例保存到成员变量中，以便之后可以停止它
+//                            if (isVictory) {
+//                                victorySoundPlayer = mediaPlayer;
+//                            } else {
+//                                defeatSoundPlayer = mediaPlayer;
+//                            }
                 });
 
+                Platform.runLater(() -> {
+                    // 创建新的结算画面实例
+                    SettlementScreen settlementScreen = new SettlementScreen(msg, evilList);
+
+                    // 获取当前窗口并切换到新的场景（Scene）
+                    // 假设你有一个方法可以获取当前的 Stage
+                    Stage primaryStage = (Stage)(Stage) gamePane.getScene().getWindow();
+
+                    // 创建一个新的 Scene，并把结算画面作为根节点
+                    Scene settlementScene = new Scene(settlementScreen, 800, 600); // 设置你需要的窗口大小
+                    primaryStage.setScene(settlementScene);
+                    primaryStage.setTitle("游戏结算");
+                });
                 break;
             }
 
@@ -955,6 +1001,10 @@ public class GameApp {
         addNodeToTop(eliminatedOverlay);
         eliminatedOverlay.setLayoutX((getSceneWidth()-300)/2);
         eliminatedOverlay.setLayoutY((getSceneHeight()-80)/2);
+    }
+
+    public void setStartMenuController(StartMenuController startMenuController) {
+        this.startMenuController = startMenuController;
     }
 
     private static class RemotePlayer {
