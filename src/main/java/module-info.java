@@ -2,6 +2,7 @@ module com.edu.example.amongus {
     requires javafx.controls;
     requires javafx.fxml;
     requires javafx.media;
+    requires com.google.gson;
 
     opens com.edu.example.amongus.ui to javafx.fxml;
     opens com.edu.example.amongus to javafx.fxml;

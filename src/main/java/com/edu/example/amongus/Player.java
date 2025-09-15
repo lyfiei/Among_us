@@ -1,5 +1,6 @@
 package com.edu.example.amongus;
 
+import com.edu.example.amongus.logic.GameConfig;
 import javafx.geometry.Bounds;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -12,6 +13,18 @@ public class Player {
     private final PixelReader collisionReader; // 碰撞像素读取器
     private PlayerStatus status = PlayerStatus.ALIVE;
 
+    public String getId() {
+        return GameConfig.getPlayerId();
+    }
+
+    public String getNick() {
+        return GameConfig.getPlayerName();
+
+    }
+
+    public String getColor() {
+        return GameConfig.getPlayerColor();
+    }
 
 
     public enum PlayerType {
