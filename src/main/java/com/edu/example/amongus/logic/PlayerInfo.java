@@ -13,7 +13,6 @@ public class PlayerInfo {
 
     private boolean alive = true;
     private Player.PlayerType type = Player.PlayerType.GOOD;
-
     public PlayerInfo(String id, String nickname, String color, double x, double y) {
         this.id = id;
         this.nickname = nickname;
