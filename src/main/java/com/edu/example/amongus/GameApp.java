@@ -614,8 +614,6 @@ public class GameApp {
                     }
                 }
 
-                // ✅ 检查是否结束
-                gameManager.checkGameOver();
 
                 // 保留投票面板几秒，让玩家看到出局
                 PauseTransition delay = new PauseTransition(Duration.seconds(4)); // 4秒停留

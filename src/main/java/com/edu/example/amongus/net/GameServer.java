@@ -5,6 +5,7 @@ import com.edu.example.amongus.Player;
 import com.edu.example.amongus.PlayerStatus;
 import com.edu.example.amongus.logic.GameState;
 import com.edu.example.amongus.logic.PlayerInfo;
+import com.google.gson.Gson;
 //import com.edu.example.amongus.task.TaskStatus;
 
 import java.io.*;
@@ -103,19 +104,62 @@ public class GameServer {
         broadcastRaw(Message.build("VOTE_RESULT", payload));
 
         // ✅ 只淘汰一个玩家，不影响其他玩家
+        // ---- finalizeMeeting 中被投出、检查胜负并广播 GAME_OVER 的修正片段 ----
         if (votedOut != null && !votedOut.isEmpty()) {
             PlayerInfo pi = gameState.getPlayer(votedOut);
             if (pi != null) {
-                pi.setAlive(false); // 只修改该玩家
+                pi.setAlive(false);
                 Map<String, String> deadPayload = new HashMap<>();
                 deadPayload.put("id", votedOut);
                 broadcastRaw(Message.build("DEAD", deadPayload));
                 System.out.println("Player " + votedOut + " 出局 (DEAD)");
 
-                // ✅ 检查游戏是否结束
-                gameManager.checkGameOver();
+                int evilCount = 0;
+                int goodCount = 0;
+
+                System.out.println("[DEBUG] ===== 投票后所有玩家状态检查 =====");
+                for (PlayerInfo i : gameState.getPlayers()) {
+                    System.out.printf("[DEBUG] 玩家 %s | 类型=%s | 存活=%s\n",
+                            i.getId(),
+                            i.getType(),
+                            i.isAlive() ? "ALIVE" : "DEAD");
+                    if (!i.isAlive()) continue; // 只统计存活的玩家
+                    if (i.getType() == Player.PlayerType.EVIL) {
+                        evilCount++;
+                    } else {
+                        goodCount++;
+                    }
+                }
+
+                if (evilCount == 0 || evilCount >= goodCount) {
+                    String message = (evilCount == 0) ? "坏人全部出局，好人胜利！" : "坏人数量 ≥ 好人数量，坏人胜利！";
+                    System.out.println(message);
+
+                    // 构造发送用的 Map<String,String>
+                    Map<String, String> gameOverPayload = new HashMap<>();
+                    gameOverPayload.put("message", message);
+
+                    // 收集所有被判定为坏人的玩家信息（无论活死都公布）
+                    List<Map<String, String>> evilPlayers = new ArrayList<>();
+                    for (PlayerInfo p : gameState.getPlayers()) {
+                        if (p.getType() == Player.PlayerType.EVIL) {
+                            Map<String, String> info = new HashMap<>();
+                            info.put("nick", p.getNick());
+                            info.put("color", p.getColor());
+                            evilPlayers.add(info);
+                        }
+                    }
+
+                    // 把列表转成 JSON 字符串放到 Map<String,String> 里（Message.build 需要 String）
+                    Gson gson = new Gson();
+                    gameOverPayload.put("evilPlayers", gson.toJson(evilPlayers));
+
+                    // 广播 GAME_OVER（注意使用 gameOverPayload）
+                    broadcastRaw(Message.build("GAME_OVER", gameOverPayload));
+                }
             }
         }
+
         try {
             broadcastRaw(Message.build("MEETING_END", Map.of()));
             System.out.println("[SERVER] Broadcast MEETING_END");
@@ -222,20 +266,33 @@ public class GameServer {
             System.out.println("满员，开始游戏！");
 
             // 随机分配角色：第一个坏人，其他好人
+            // 随机分配角色：第一个坏人，其他好人
             List<String> shuffled = new ArrayList<>(waitingQueue);
             Collections.shuffle(shuffled);
             String evilId = shuffled.get(0);
 
             for (String id : shuffled) {
                 Map<String, String> rolePayload = new HashMap<>();
-                rolePayload.put("type", id.equals(evilId) ? "EVIL" : "GOOD");
-                rolePayload.put("target", id); // 添加目标ID
+                String role = id.equals(evilId) ? "EVIL" : "GOOD";
+                rolePayload.put("type", role);
+                rolePayload.put("target", id);
                 broadcastRaw(Message.build("ROLE", rolePayload));
+
+                // 服务端也要设置 PlayerInfo 的类型
+                PlayerInfo pi = gameState.getPlayer(id);
+                if (pi != null) {
+                    pi.setRole(role.equals("EVIL") ? PlayerInfo.Role.EVIL : PlayerInfo.Role.GOOD); // 可选，如果你想用 Role 枚举
+                    pi.setType(role.equals("EVIL") ? Player.PlayerType.EVIL : Player.PlayerType.GOOD); // ✅ 这才是关键！
+                }
+
                 ClientHandler ch = findClientById(id);
                 if (ch != null) {
                     try {
                         System.out.println("发送角色消息");
-                        ch.sendRaw(Message.build("ROLE", rolePayload)); } catch (IOException e) { e.printStackTrace(); }
+                        ch.sendRaw(Message.build("ROLE", rolePayload));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             List<Player> playerList = new ArrayList<>();

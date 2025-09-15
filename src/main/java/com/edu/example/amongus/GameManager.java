@@ -49,13 +49,19 @@ public class GameManager {
 
     // 检查游戏是否结束
     public void checkGameOver() {
+
         long evilCount = players.stream()
                 .filter(p -> p.getType() == Player.PlayerType.EVIL && p.isAlive())
                 .count();
         long goodCount = players.stream()
                 .filter(p -> p.getType() == Player.PlayerType.GOOD && p.isAlive())
                 .count();
+        System.out.println("[DEBUG] GameManager: 正在检查游戏是否结束... [evilCount=" + evilCount + ", goodCount=" + goodCount + "]");
 
+        System.out.println("[DEBUG] ===== 检查游戏结束时的所有玩家状态 =====");
+        for (Player p : players) {
+            System.out.printf("[DEBUG] 玩家类型=%s, 存活=%s\n", p.getType(), p.isAlive() ? "ALIVE" : "DEAD");
+        }
         if (evilCount == 0) {
             endGame("坏人全部出局，好人胜利！");
         } else if (evilCount >= goodCount) {
