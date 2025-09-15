@@ -65,6 +65,10 @@ public class GameApp {
 
     private GameConfig gameConfig;
 
+
+    private int current;
+    private int total;
+
     // meeting / vote
     private boolean inMeeting = false;
     private boolean isEliminated = false;
@@ -404,12 +408,29 @@ public class GameApp {
             case "LEAVE": handleLeave(parsed); break;
             case "CHAT": handleChat(parsed); break;
             case "GAME_START": handleGameStart(parsed); break;
-            case "ROLE": handleGameStart(parsed); break;
+            case "ROLE": {
+                String role = parsed.payload.get("type");
+                System.out.println("你的角色是: " + role);
+                GameConfig.setPlayerRole(role);
+                if(role.equals("GOOD")) {
+                    player.setType(Player.PlayerType.GOOD);
+                }
+                else{
+                    player.setType(Player.PlayerType.EVIL);
+                }
+                break;
+            }
             case "MATCH_UPDATE": {
-                int current = Integer.parseInt(parsed.payload.get("current"));
-                int total = Integer.parseInt(parsed.payload.get("total"));
-                if (matchUpdateListener != null) {
-                    Platform.runLater(() -> matchUpdateListener.onMatchUpdate(current, total));
+                String curStr = parsed.payload.get("current");
+                String totalStr = parsed.payload.get("total");
+
+                if (curStr != null && totalStr != null) {
+                    current = Integer.parseInt(curStr);
+                    System.out.println("current: " + current);
+                    total = Integer.parseInt(totalStr);
+                    if (matchUpdateListener != null) {
+                        Platform.runLater(() -> matchUpdateListener.onMatchUpdate(current, total));
+                    }
                 }
                 break;
             }
@@ -649,7 +670,16 @@ public class GameApp {
             return view;
         }
     }
+
     public Pane getGamePane() {
         return gamePane;
+    }
+
+    public GameClient getClient() {
+        return this.client; // client 是你在 GameApp 里已有的字段
+    }
+
+    public int getCurrent() {
+        return current;
     }
 }

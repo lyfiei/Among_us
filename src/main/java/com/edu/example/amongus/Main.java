@@ -24,6 +24,8 @@ public class Main extends Application {
     private static Stage primaryStage;
     private static GameApp game;
 
+    private static MatchUI matchUI; // ✅ 成员变量
+
     public static Stage getPrimaryStage() {
         return primaryStage;
     }
@@ -86,14 +88,19 @@ public class Main extends Application {
         game = new GameApp(new Pane());
 
         // 7. 切换到匹配界面
-        MatchUI matchUI = new MatchUI(5); // 假设一局 8 个玩家
-        // 注册监听器，等网络层发 MATCH_UPDATE 时更新 UI
+        MatchUI matchUI = new MatchUI(5); // 假设 MAX_PLAYERS=5
+
+        int currentPlayers = game.getCurrent(); // 或从 GameApp/GameClient 拿
+        System.out.println("currentPlayers: " + currentPlayers);
+        matchUI.onMatchUpdate(currentPlayers, 5);
+
+// 注册监听器，网络层收到 MATCH_UPDATE 时更新 UI
         GameApp.setMatchUpdateListener((current, total) -> {
-            matchUI.updateMatch(current, total);
+            matchUI.onMatchUpdate(current, total);
         });
+
         Scene matchScene = new Scene(matchUI, 800, 600);
         primaryStage.setScene(matchScene);
-
     }
 
 

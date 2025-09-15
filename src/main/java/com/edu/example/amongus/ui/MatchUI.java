@@ -8,12 +8,12 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
 
-public class MatchUI extends VBox {
+public class MatchUI extends VBox implements MatchUpdateListener{
     private Label statusLabel;
     private ProgressBar progressBar;
 
 
-    public MatchUI(int total) {
+    public MatchUI (int total) {
         // 上方图片
         ImageView amongusImg = new ImageView(
                 new Image(getClass().getResource("/com/edu/example/amongus/images/Among_Us_logo.png").toExternalForm())
@@ -36,7 +36,7 @@ public class MatchUI extends VBox {
         getChildren().addAll(amongusImg, progressBar, statusLabel);
     }
 
-    public void updateMatch(int current, int total) {
+    public void onMatchUpdate(int current, int total) {
         statusLabel.setText("已匹配 " + current + "/" + total + " 位玩家");
         progressBar.setProgress((double) current / total);
     }

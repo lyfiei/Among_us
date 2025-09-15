@@ -63,4 +63,8 @@ public class GameClient {
             socket.close();
         } catch (IOException ignored) {}
     }
+
+//    public int getWaitingQueueSize() {
+//        return waitingQueue.size(); // 服务器推送的等待队列人数
+//    }
 }

@@ -29,7 +29,7 @@ public class GameServer {
 
     Map<String, ClientHandler> connectedPlayers = new HashMap<>();
     List<String> waitingQueue = new ArrayList<>();
-    final int MAX_PLAYERS = 5;
+    final int MAX_PLAYERS = 3;
     final int NUM_EVIL = 1;
 
     public GameServer(int port) { this.port = port; }
@@ -320,6 +320,15 @@ public class GameServer {
                     matchPayload.put("current", String.valueOf(waitingQueue.size()));
                     matchPayload.put("total", String.valueOf(MAX_PLAYERS));
                     System.out.println("Match_UPDATE: " + id + " " + matchPayload);
+                    try { sendRawToClient(matchPayload, id, "MATCH_UPDATE"); } catch (IOException e) { e.printStackTrace(); }
+
+                    // ✅ 单独发送给新加入玩家
+                    try {
+                        sendRawToClient(matchPayload, id, "MATCH_UPDATE");
+                    } catch (IOException e) {
+                        e.printStackTrace(); // 或者记录日志
+                    }
+
                     broadcastRaw(Message.build("MATCH_UPDATE", matchPayload));
                     System.out.println("[SERVER] MATCH_UPDATE -> " + waitingQueue.size() + "/" + MAX_PLAYERS);
 

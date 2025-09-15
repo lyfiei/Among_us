@@ -2,6 +2,7 @@ package com.edu.example.amongus.logic;
 
 import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
+import com.edu.example.amongus.ui.MatchUI;
 import com.edu.example.amongus.ui.MatchUpdateListener;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -20,7 +21,14 @@ public class GameConfig {
     private static String playerRole; // GOOD / EVIL
     private static boolean joined = false;
 
+    private String myRole;  // GOOD 或 EVIL
+
     private static GameClient client;
+    private static MatchUpdateListener matchUpdateListener;
+
+    public static void setMatchUpdateListener(MatchUpdateListener listener) {
+        matchUpdateListener = listener;
+    }
 
 
 
@@ -81,17 +89,26 @@ public class GameConfig {
                 String role = parsed.payload.get("type");
                 System.out.println("你的角色是: " + role);
                 setPlayerRole(role);
+                player.setType(role);         // ⚡ 把角色写进 Player 对象
                 break;
             case "GAME_START":
                 System.out.println("游戏开始！");
-                // 收到服务器 GAME_START 后启动游戏
-                Platform.runLater(() -> {
-                    PauseTransition delay = new PauseTransition(Duration.millis(500));
+
+                PauseTransition delay = new PauseTransition(Duration.seconds(0.5));
+                delay.setOnFinished(event -> {
                     System.out.println("收到服务器 GAME_START 后启动游戏runLater 执行了");
-                    //System.out.println("primaryStage = " + primaryStage);
                     com.edu.example.amongus.Main.startGameScene();
-                    System.out.println("你的角色是 "+com.edu.example.amongus.logic.GameConfig.getPlayerRole());
+                    System.out.println("你的角色是 " + com.edu.example.amongus.logic.GameConfig.getPlayerRole());
                 });
+                delay.play(); // ✅ 这一步启动计时
+                delay.play();
+                break;
+            case "MATCH_UPDATE":
+                int current = Integer.parseInt(parsed.payload.get("current"));
+                int total = Integer.parseInt(parsed.payload.get("total"));
+                if (matchUpdateListener != null) {
+                    Platform.runLater(() -> matchUpdateListener.onMatchUpdate(current, total));
+                }
                 break;
         }
     }
