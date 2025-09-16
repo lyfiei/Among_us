@@ -1,6 +1,7 @@
 package com.edu.example.amongus.task;
 
 import com.edu.example.amongus.GameConstants;
+import com.edu.example.amongus.logic.GameConfig;
 import com.edu.example.amongus.net.Message;
 import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ReactorSabotage {
+
     private final GameApp gameApp;
     private final Pane gamePane;
     private final GameClient client;
@@ -50,11 +52,12 @@ public class ReactorSabotage {
 
     // 常量
     private static final int SABOTAGE_DURATION = 120; // 2分钟
-    private static final double LEFT_FIX_X = 1500;
-    private static final double LEFT_FIX_Y = 600;
-    private static final double RIGHT_FIX_X = 1800;
-    private static final double RIGHT_FIX_Y = 600;
-    private static final double FIX_ZONE_SIZE = 100;
+    private static final double LEFT_FIX_X = 340;
+    private static final double LEFT_FIX_Y = 630;
+    private static final double RIGHT_FIX_X = 540; // 340 + 200
+    private static final double RIGHT_FIX_Y = 630;
+    private static final double FIX_ZONE_WIDTH = 200;
+    private static final double FIX_ZONE_HEIGHT = 250;
 
     public ReactorSabotage(GameApp gameApp) {
         this.gameApp = gameApp;
@@ -62,42 +65,64 @@ public class ReactorSabotage {
         this.client = gameApp.getClient();
         this.player = gameApp.getPlayer();
 
+        System.out.println("[DEBUG] ReactorSabotage init - client is " +
+                (client != null ? "connected" : "NULL"));
+
         if (this.player == null) {
             throw new IllegalStateException("Player cannot be null in ReactorSabotage");
         }
 
         // 创建修复区域
-        this.leftFixZone = new TriggerZone(LEFT_FIX_X, LEFT_FIX_Y, FIX_ZONE_SIZE, FIX_ZONE_SIZE, "LeftReactorFix");
-        this.rightFixZone = new TriggerZone(RIGHT_FIX_X, RIGHT_FIX_Y, FIX_ZONE_SIZE, FIX_ZONE_SIZE, "RightReactorFix");
+        this.leftFixZone = new TriggerZone(LEFT_FIX_X, LEFT_FIX_Y, FIX_ZONE_WIDTH, FIX_ZONE_HEIGHT, "LeftReactorFix");
+        this.rightFixZone = new TriggerZone(RIGHT_FIX_X, RIGHT_FIX_Y, FIX_ZONE_WIDTH, FIX_ZONE_HEIGHT, "RightReactorFix");
 
         // 初始化UI元素
-        initUI();
+        Platform.runLater(this::initUI);
     }
 
     private void initUI() {
-        // 红色覆盖层
-        redOverlay = new Rectangle(GameConstants.MAP_WIDTH, GameConstants.MAP_HEIGHT);
-        redOverlay.setFill(Color.rgb(255, 0, 0, 0.3));
-        redOverlay.setVisible(false);
-        gamePane.getChildren().add(redOverlay);
+        if (redOverlay == null) {
+            // 红色覆盖层
+            redOverlay = new Rectangle(GameConstants.MAP_WIDTH, GameConstants.MAP_HEIGHT);
+            redOverlay.setFill(Color.rgb(255, 0, 0, 0.3));
+            redOverlay.setVisible(false);
+            gamePane.getChildren().add(redOverlay);
+        }
 
-        // 倒计时标签
-        countdownLabel = new Label();
-        countdownLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white; -fx-background-color: rgba(0,0,0,0.7);");
-        countdownLabel.setVisible(false);
-        gamePane.getChildren().add(countdownLabel);
+        if (countdownLabel == null) {
+            // 倒计时标签
+            countdownLabel = new Label();
+            countdownLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white; -fx-background-color: rgba(0,0,0,0.7);");
+            countdownLabel.setVisible(false);
+            gamePane.getChildren().add(countdownLabel);
+        }
 
-        // 修复区域高亮
-        leftFixZone.getView().setFill(Color.rgb(0, 255, 0, 0.5));
-        rightFixZone.getView().setFill(Color.rgb(0, 255, 0, 0.5));
-        leftFixZone.getView().setVisible(false);
-        rightFixZone.getView().setVisible(false);
-        gamePane.getChildren().addAll(leftFixZone.getView(), rightFixZone.getView());
+        if (!gamePane.getChildren().contains(leftFixZone.getView())) {
+            leftFixZone.getView().setFill(Color.rgb(0, 255, 0, 0.5));
+            leftFixZone.getView().setVisible(false);
+            gamePane.getChildren().add(leftFixZone.getView());
+        }
+
+        if (!gamePane.getChildren().contains(rightFixZone.getView())) {
+            rightFixZone.getView().setFill(Color.rgb(0, 255, 0, 0.5));
+            rightFixZone.getView().setVisible(false);
+            gamePane.getChildren().add(rightFixZone.getView());
+        }
+
+        redOverlay.toFront();
+        countdownLabel.toFront();
+        leftFixZone.getView().toFront();
+        rightFixZone.getView().toFront();
     }
 
-    // 坏人按G键触发破坏事件
-    // 使用完全限定名确保类型正确
+
+
     public void handleKeyPress(javafx.scene.input.KeyCode code) {
+        if (!gamePane.isFocused()) {
+            System.out.println("[DEBUG] GamePane not focused, requesting focus");
+            gamePane.requestFocus();
+            return;
+        }
         System.out.println("[DEBUG] Key: " + code +
                 ", PlayerType: " + player.getType() +
                 ", SabotageActive: " + sabotageActive);
@@ -106,17 +131,26 @@ public class ReactorSabotage {
             return;
         }
         if (code == javafx.scene.input.KeyCode.G && player.getType() == Player.PlayerType.EVIL && !sabotageActive) {
-            System.out.println("[DEBUG] Starting sabotage...");
+            System.out.println("[DEBUG] Starting sabotage...坏人按下G键，发送破坏消息");
             startSabotage();
         }
 
         if (code == javafx.scene.input.KeyCode.H && sabotageActive && player.getType() == Player.PlayerType.GOOD) {
+            System.out.println("好人按下h键，开始修复");
             attemptFix();
         }
     }
 
     private void startSabotage() {
         System.out.println("[DEBUG] Sabotage started!");
+        System.out.println("[DEBUG] GamePane children: " + gamePane.getChildren());
+        System.out.println("[DEBUG] Red overlay visible: " + redOverlay.isVisible());
+        System.out.println("[DEBUG] Countdown label visible: " + countdownLabel.isVisible());
+        System.out.println("[DEBUG] Left fix zone visible: " + leftFixZone.getView().isVisible());
+        System.out.println("[DEBUG] Right fix zone visible: " + rightFixZone.getView().isVisible());
+        if (player.getType() != Player.PlayerType.EVIL) return;
+        Platform.runLater(() -> {
+            System.out.println("[DEBUG] Setting UI elements visible");
         sabotageActive = true;
         leftFixed = false;
         rightFixed = false;
@@ -132,17 +166,21 @@ public class ReactorSabotage {
 
         // 显示倒计时
         countdownLabel.setVisible(true);
-        startCountdown();
+        startCountdown();});
 
         // 通知服务器
+        GameClient client = gameApp.getClient(); // 每次动态获取最新引用
+        System.out.println("[DEBUG] Current thread: " + Thread.currentThread().getName());
         if (client != null) {
             try {
                 Map<String, String> payload = new HashMap<>();
                 payload.put("sabotage", "reactor");
                 payload.put("duration", String.valueOf(SABOTAGE_DURATION));
                 client.send("SABOTAGE", payload);
+                System.out.println("[DEBUG-SABOTAGE] 破坏消息已发送: " + payload);
             } catch (IOException e) {
                 e.printStackTrace();
+                System.err.println("[ERROR-SABOTAGE] 发送破坏消息失败: " + e.getMessage());
             }
         }
     }
@@ -169,6 +207,11 @@ public class ReactorSabotage {
     }
 
     private void startCountdown() {
+        double x = Math.max(0, Math.min(player.getX() - 100, GameConstants.MAP_WIDTH - 200));
+        double y = Math.max(0, Math.min(player.getY() - 50, GameConstants.MAP_HEIGHT - 50));
+        countdownLabel.setLayoutX(x);
+        countdownLabel.setLayoutY(y);
+
         AtomicInteger secondsLeft = new AtomicInteger(SABOTAGE_DURATION);
         countdownLabel.setText("修复剩余时间: " + secondsLeft.get() + "秒");
 
@@ -189,6 +232,14 @@ public class ReactorSabotage {
     }
 
     private void attemptFix() {
+        System.out.println("[DEBUG] Attempting fix - Player position: (" +
+                player.getX() + ", " + player.getY() + ")");
+        System.out.println("[DEBUG] Left zone bounds: " + leftFixZone);
+        System.out.println("[DEBUG] Right zone bounds: " + rightFixZone);
+        if (!gamePane.isFocused()) {
+            System.out.println("[DEBUG] GamePane not focused, aborting fix attempt");
+            return;
+        }
         // 检查玩家是否在修复区域内
         boolean inLeftZone = leftFixZone.isPlayerInside(player);
         boolean inRightZone = rightFixZone.isPlayerInside(player);
@@ -212,16 +263,23 @@ public class ReactorSabotage {
         repairCount++;
 
         // 通知服务器
+        GameClient client = gameApp.getClient();
         if (client != null) {
             try {
+                String playerNick = player.getNick(); // 使用Player类的getNick方法
+                if (playerNick == null) {
+                    System.err.println("[ERROR] Player nick is null!");
+                    return;
+                }
                 Map<String, String> payload = new HashMap<>();
-                payload.put("player", player.getId());
+                payload.put("player", playerNick); // 使用昵称而不是ID
                 payload.put("side", inLeftZone ? "left" : "right");
                 client.send("REACTOR_FIX", payload);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+
 
         // 检查是否完成修复
         if (repairCount >= 2) {
@@ -247,7 +305,6 @@ public class ReactorSabotage {
     }
 
     private void sabotageFailed() {
-        // 停止倒计时和闪烁
         sabotageActive = false;
         if (countdownTimer != null) {
             countdownTimer.stop();
@@ -264,6 +321,8 @@ public class ReactorSabotage {
             try {
                 Map<String, String> payload = new HashMap<>();
                 payload.put("result", "fail");
+                // 添加必要的游戏结束信息
+                payload.put("message", "反应堆熔毁，坏人胜利！");
                 client.send("SABOTAGE_RESULT", payload);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -279,18 +338,22 @@ public class ReactorSabotage {
             MediaPlayer mediaPlayer = new MediaPlayer(media);
             MediaView mediaView = new MediaView(mediaPlayer);
 
+            // 设置视频自适应父容器
+            mediaView.setPreserveRatio(true); // 保持比例
+            mediaView.fitWidthProperty().bind(gameApp.getGamePane().widthProperty());
+            mediaView.fitHeightProperty().bind(gameApp.getGamePane().heightProperty());
+
             // 创建新窗口播放视频
             Stage videoStage = new Stage();
             Pane videoPane = new Pane(mediaView);
-            Scene videoScene = new Scene(videoPane, 640, 480);
+            // 这里用 gamePane 的当前宽高
+            Scene videoScene = new Scene(videoPane, gameApp.getGamePane().getWidth(), gameApp.getGamePane().getHeight());
             videoStage.setScene(videoScene);
             videoStage.setTitle("反应堆修复成功");
             videoStage.show();
 
             // 视频播放完成后关闭窗口
-            mediaPlayer.setOnEndOfMedia(() -> {
-                Platform.runLater(videoStage::close);
-            });
+            mediaPlayer.setOnEndOfMedia(() -> Platform.runLater(videoStage::close));
 
             mediaPlayer.play();
         } catch (Exception e) {
@@ -306,23 +369,37 @@ public class ReactorSabotage {
         }
     }
 
+
     // 处理网络消息
     public void handleNetworkMessage(Message.Parsed parsed) {
         if (parsed == null) return;
 
         switch (parsed.type) {
             case "SABOTAGE":
-                if (parsed.payload.get("sabotage").equals("reactor")) {
-                    // 如果是好人收到破坏通知
-                    if (player.getType() == Player.PlayerType.GOOD) {
-                        Platform.runLater(() -> {
-                            startSabotage();
-                        });
-                    }
+                System.out.println("好人收到消息");
+                if ("reactor".equals(parsed.payload.get("sabotage"))) {
+                    Platform.runLater(() -> {
+                        //
+                        System.out.println("好人开始处理");
+                        sabotageActive = true;
+                        leftFixed = false;
+                        rightFixed = false;
+                        repairCount = 0;
+
+                        redOverlay.setVisible(true);
+                        startFlashingEffect();
+
+                        leftFixZone.getView().setVisible(true);
+                        rightFixZone.getView().setVisible(true);
+
+                        countdownLabel.setVisible(true);
+                        startCountdown();
+                    });
                 }
                 break;
 
             case "REACTOR_FIX":
+                System.out.println("好人发出修复消息");
                 String side = parsed.payload.get("side");
                 if (side.equals("left")) {
                     leftFixed = true;
@@ -339,6 +416,7 @@ public class ReactorSabotage {
                 break;
 
             case "SABOTAGE_RESULT":
+                System.out.println("修复结果消息发出");
                 if (parsed.payload.get("result").equals("fail")) {
                     Platform.runLater(() -> {
                         // 显示失败消息
@@ -348,8 +426,27 @@ public class ReactorSabotage {
                         alert.setContentText("好人未能及时修复反应堆，坏人获胜！");
                         alert.show();
                     });
+                } else if (parsed.payload.get("result").equals("success")) {
+                    Platform.runLater(() -> {
+                        // 显示成功消息
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                        alert.setTitle("修复成功");
+                        alert.setHeaderText("反应堆已稳定");
+                        alert.setContentText("团队合作成功防止了反应堆熔毁！");
+                        alert.show();
+                    });
                 }
                 break;
         }
     }
+
+    public TriggerZone getLeftFixZone() {
+        return leftFixZone;
+    }
+
+    public TriggerZone getRightFixZone() {
+        return rightFixZone;
+    }
+
+
 }
