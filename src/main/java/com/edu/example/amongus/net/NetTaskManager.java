@@ -25,7 +25,7 @@ public class NetTaskManager {
      * 2. 检查任务是否已全局完成
      * 3. 通过服务器广播更新全局状态
      */
-    public void completeOneStep(String taskName) {
+    public void completeOneStep(String taskName) throws IOException {
         // 添加前置检查
         if (client == null ) {
             System.out.println("[NET] 客户端未连接，跳过同步");
@@ -80,4 +80,11 @@ public class NetTaskManager {
 
         }
     }
+    public void sendTaskUpdate(String taskName, int completedSteps) throws IOException {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("taskName", taskName);
+        payload.put("completedSteps", String.valueOf(completedSteps));
+        client.send("TASK_UPDATE", payload);
+    }
+
 }

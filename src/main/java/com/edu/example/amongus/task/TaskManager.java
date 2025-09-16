@@ -4,6 +4,7 @@ import com.edu.example.amongus.Player;
 import com.edu.example.amongus.net.NetTaskManager;
 import javafx.scene.layout.Pane;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -87,7 +88,7 @@ public class TaskManager {
     }
 
     // 在指定任务名完成一步任务，并更新状态栏（供 NetTaskManager 调用）
-    public void completeOneStep(String taskName) {
+    public void completeOneStep(String taskName) throws IOException {
         Task task = getTask(taskName);
         if (task == null) return;
 

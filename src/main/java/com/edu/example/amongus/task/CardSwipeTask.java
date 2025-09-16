@@ -6,6 +6,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 
+import java.io.IOException;
+
 public class CardSwipeTask implements Task {
     private final Pane root;
     private ImageView card;
@@ -120,7 +122,11 @@ public class CardSwipeTask implements Task {
 
             active = false;
             if (success) {
-                netTaskManager.completeOneStep("CardSwipe");
+                try {
+                    netTaskManager.completeOneStep("CardSwipe");
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
                 completedSteps++;
                 if (listener != null) listener.onTaskComplete(true);  // ✅ 回调更新状态栏
             }
