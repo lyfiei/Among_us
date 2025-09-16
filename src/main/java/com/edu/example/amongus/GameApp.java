@@ -5,7 +5,11 @@ import com.edu.example.amongus.net.GameClient;
 import com.edu.example.amongus.net.Message;
 import com.edu.example.amongus.net.NetTaskManager;
 import com.edu.example.amongus.task.*;
-import com.edu.example.amongus.ui.*;
+import com.edu.example.amongus.ui.ChatPane;
+import com.edu.example.amongus.ui.PlayerActionUI;
+import com.edu.example.amongus.ui.MatchUI;
+import com.edu.example.amongus.ui.MatchUpdateListener;
+import com.edu.example.amongus.ui.VotePane;
 import com.google.gson.Gson;
 import javafx.animation.AnimationTimer;
 import javafx.animation.PauseTransition;
@@ -44,23 +48,23 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.*;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.input.KeyCode;
 
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 
 
 import static javafx.application.Platform.*;
-
+import javafx.scene.input.KeyCode;
 public class GameApp {
 
-   // private GameManager gameManager;
 
     private final Pane gamePane;
     private final Player player;
     private PlayerActionUI actionUI;
     private final Mapp gameMap;
     private final InputHandler inputHandler;
-
+    private final ReactorSabotage reactorSabotage;
     //task
     private NetTaskManager netTaskManager;
     private final TaskStatusBar statusBar;
@@ -68,6 +72,9 @@ public class GameApp {
     private CardSwipeTask cardTask;
     private DownloadTask downloadTask;
     private FixWiring fixWiring;
+
+    //event
+    // 类成员
 
     private final Canvas fogCanvas;
     private GameClient client;
@@ -139,6 +146,8 @@ public class GameApp {
         myNameTag = new Label(myNick);
         myNameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
 
+        this.reactorSabotage = new ReactorSabotage(this);
+
         // add base nodes
         gamePane.getChildren().addAll(gameMap.getMapView(), player.getView(), myNameTag);
 
@@ -156,10 +165,7 @@ public class GameApp {
         Label roleLabel = actionUI.getRoleLabel();
         // try connect server
         try {
-            this.client = new GameClient("127.0.0.1", 22222, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
-
-//            //task
-//            this.netTaskManager = new NetTaskManager(taskManager, client);
+            this.client = new GameClient("192.168.43.124", 16789, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
 
             player.setName(myId);
 
@@ -419,6 +425,7 @@ public class GameApp {
 
         // Use event filters so keystrokes are captured even if focus briefly on controls
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+                reactorSabotage.handleKeyPress(e.getCode());
             // Debug log for key press
             System.out.println("[DEBUG] Key pressed: " + e.getCode() + " (chat visible=" + chatPane.isVisible() + ")");
             // If chat visible, don't add to movement keys
@@ -451,6 +458,7 @@ public class GameApp {
                     }
                 }
             }
+
         });
 
         killBtn.setOnAction(ev -> {
@@ -799,6 +807,11 @@ public class GameApp {
                 });
                 break;
             }
+            case "SABOTAGE":
+            case "REACTOR_FIX":
+            case "SABOTAGE_RESULT":
+                reactorSabotage.handleNetworkMessage(parsed);
+                break;
             case "GAME_OVER": {
                 String msg = parsed.payload.get("message");
                 String evilJson = parsed.payload.get("evilPlayers");
@@ -1014,9 +1027,6 @@ public class GameApp {
         double x, y;
         PlayerStatus status = PlayerStatus.ALIVE;
 
-//        public enum PlayerType {
-//            GOOD, EVIL
-//        }
         Player.PlayerType type; // 好人 / 坏人
 
         RemotePlayer(String id, String nick, String color, ImageView v, double x, double y,
@@ -1031,7 +1041,6 @@ public class GameApp {
             this.nameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
             this.status = status;
             this.type = type; // 存储身份
-
         }
 
         public void setStatus(PlayerStatus playerStatus) {
@@ -1118,4 +1127,7 @@ public class GameApp {
         return this.client; // client 是你在 GameApp 里已有的字段
     }
 
+    public Player getPlayer() {
+        return this.player;
+    }
 }
