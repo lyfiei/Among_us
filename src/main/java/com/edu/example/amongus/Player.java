@@ -22,6 +22,7 @@ public class Player {
 
     private String name; // 玩家名字，用于调试
 
+
     public String getId() {
         return GameConfig.getPlayerId();
     }

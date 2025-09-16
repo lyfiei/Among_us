@@ -69,7 +69,7 @@ public class TaskManager {
                 currentZoneIndex = i;
                 z.setHighlighted(true);          // 高亮矩形
                 z.getView().toFront();           // 置顶显示
-                System.out.println("已到达指定任务区域: " + z.getTaskName());
+//                System.out.println("已到达指定任务区域: " + z.getTaskName());
                 break; // 找到一个触发区就行
             }
         }
@@ -147,7 +147,12 @@ public class TaskManager {
     }
     public void setPlayer(Player player) { this.player = player; }
     public Player getPlayer() { return this.player; }
-
+    public void addZone(TriggerZone zone) {
+        if (!zones.contains(zone)) {
+            zones.add(zone);
+            gamePane.getChildren().add(zone.getView());
+        }
+    }
     public TaskStatusBar getStatusBar() {
         return statusBar;
     }

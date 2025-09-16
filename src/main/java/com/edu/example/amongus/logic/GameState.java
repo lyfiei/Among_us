@@ -76,4 +76,13 @@ public class GameState {
         return new HashMap<>(taskProgress);
     }
 
+    public PlayerInfo getPlayerByNick(String nick) {
+        for (PlayerInfo pi : players.values()) {
+            if (pi.getNick().equals(nick)) {
+                return pi;
+            }
+        }
+        return null;
+    }
+
 }

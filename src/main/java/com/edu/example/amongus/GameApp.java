@@ -150,6 +150,8 @@ public class GameApp {
         myNameTag.setStyle("-fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold;");
 
         this.reactorSabotage = new ReactorSabotage(this);
+        taskManager.addZone(reactorSabotage.getLeftFixZone());
+        taskManager.addZone(reactorSabotage.getRightFixZone());
 
         // add base nodes
         gamePane.getChildren().addAll(gameMap.getMapView(), player.getView(), myNameTag);
@@ -168,7 +170,7 @@ public class GameApp {
         Label roleLabel = actionUI.getRoleLabel();
         // try connect server
         try {
-            this.client = new GameClient("192.168.43.124", 16789, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+            this.client = new GameClient("192.168.43.51", 16789, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
 
             player.setName(myId);
 
@@ -428,6 +430,7 @@ public class GameApp {
 
         // Use event filters so keystrokes are captured even if focus briefly on controls
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            System.out.println("Key pressed: " + e.getCode());
                 reactorSabotage.handleKeyPress(e.getCode());
             // Debug log for key press
             System.out.println("[DEBUG] Key pressed: " + e.getCode() + " (chat visible=" + chatPane.isVisible() + ")");

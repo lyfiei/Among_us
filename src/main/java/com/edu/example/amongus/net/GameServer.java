@@ -32,6 +32,9 @@ public class GameServer {
     final int MAX_PLAYERS = 3;
     final int NUM_EVIL = 1;
 
+    private final Set<String> fixedSides = ConcurrentHashMap.newKeySet(); // 跟踪已修复的区域
+    private volatile boolean sabotageActive = false;
+
     public GameServer(int port) { this.port = port; }
 
     public void start() throws IOException {
@@ -573,10 +576,13 @@ public class GameServer {
                     System.out.println("[SERVER] TASK_UPDATE: " + taskName + " steps=" + completedSteps);
                     break;
                 }
-                // 在handleMessage方法中添加
+
                 case "SABOTAGE": {
+                    System.out.println("[SERVER-DEBUG] 收到破坏消息: " + m.payload);
                     String sabotageType = m.payload.get("sabotage");
                     if ("reactor".equals(sabotageType)) {
+                        sabotageActive = true;
+                        fixedSides.clear();
                         // 广播给所有玩家
                         broadcastRaw(rawLine);
                     }
@@ -584,22 +590,41 @@ public class GameServer {
                 }
 
                 case "REACTOR_FIX": {
-                    String playerId = m.payload.get("player");
+                    System.out.println("收到好人修复消息");
+                    String playerNick = m.payload.get("player"); // 获取昵称
                     String side = m.payload.get("side");
 
-                    // 广播修复进度
-                    Map<String, String> fixPayload = new HashMap<>();
-                    fixPayload.put("side", side);
-                    broadcastRaw(Message.build("REACTOR_FIX", fixPayload));
+                    // 通过昵称查找玩家
+                    PlayerInfo pi = gameState.getPlayerByNick(playerNick);
+                    if (pi != null && pi.getType() == Player.PlayerType.GOOD) {
+                        // 记录修复的区域
+                        fixedSides.add(side);
+
+                        // 广播修复进度
+                        Map<String, String> fixPayload = new HashMap<>();
+                        fixPayload.put("side", side);
+                        broadcastRaw(Message.build("REACTOR_FIX", fixPayload));
+
+                        // 检查是否完成修复
+                        if (fixedSides.contains("left") && fixedSides.contains("right")) {
+                            // 修复成功
+                            Map<String, String> resultPayload = new HashMap<>();
+                            resultPayload.put("result", "success");
+                            broadcastRaw(Message.build("SABOTAGE_RESULT", resultPayload));
+                            fixedSides.clear(); // 重置状态
+                        }
+                    }
                     break;
                 }
 
                 case "SABOTAGE_RESULT": {
+                    System.out.println("server收到修复结果");
                     String result = m.payload.get("result");
                     if ("fail".equals(result)) {
                         // 游戏结束，坏人胜利
                         Map<String, String> payload = new HashMap<>();
                         payload.put("message", "反应堆熔毁，坏人胜利！");
+                        payload.put("winner", "EVIL"); // 明确指定胜利方
 
                         // 收集所有坏人信息
                         List<Map<String, String>> evilPlayers = new ArrayList<>();
@@ -615,6 +640,11 @@ public class GameServer {
                         Gson gson = new Gson();
                         payload.put("evilPlayers", gson.toJson(evilPlayers));
                         broadcastRaw(Message.build("GAME_OVER", payload));
+                    }
+                    else if ("success".equals(result)) {
+                    // 重置游戏状态
+                    fixedSides.clear();
+                        sabotageActive = false;
                     }
                     break;
                 }
@@ -638,6 +668,29 @@ public class GameServer {
                     break;
                 }
             }
+        }
+    }
+
+    private void checkGameEndAfterSabotage() {
+        // 检查是否满足游戏结束条件
+        int evilCount = 0;
+        int goodCount = 0;
+
+        for (PlayerInfo i : gameState.getPlayers()) {
+            if (!i.isAlive()) continue;
+            if (i.getType() == Player.PlayerType.EVIL) {
+                evilCount++;
+            } else {
+                goodCount++;
+            }
+        }
+
+        if (evilCount == 0 || evilCount >= goodCount) {
+            String message = evilCount == 0 ? "坏人全部出局，好人胜利！" : "坏人数量 ≥ 好人数量，坏人胜利！";
+            Map<String, String> payload = new HashMap<>();
+            payload.put("message", message);
+            // ... 其他游戏结束处理逻辑
+            broadcastRaw(Message.build("GAME_OVER", payload));
         }
     }
 
