@@ -96,11 +96,18 @@ public class FixWiring implements Task{
 
     // ===== 新增多步任务方法 =====
     @Override
-    public void completeOneStep() {
+    public void completeOneStep() throws IOException {
         if (!active || completed) return;
         completedSteps++;
+
+        // 🔗 每一步都同步给服务器
+        if (netTaskManager != null) {
+            netTaskManager.sendTaskUpdate(taskName, completedSteps);
+        }
+
         if (completedSteps >= totalSteps) complete();
     }
+
 
     @Override
     public int getTotalSteps() { return totalSteps; }

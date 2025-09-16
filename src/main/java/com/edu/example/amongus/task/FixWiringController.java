@@ -11,6 +11,7 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -134,7 +135,11 @@ public class FixWiringController {
 
                     // ✅ 每连一条线完成一步
                     if (logic != null) {
-                        logic.completeOneStep();
+                        try {
+                            logic.completeOneStep();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
 
                     // 如果全部连完，关闭窗口

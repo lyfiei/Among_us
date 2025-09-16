@@ -509,7 +509,49 @@ public class GameServer {
                         broadcastRaw(Message.build("DEAD", deadPayload));
                         System.out.println("[SERVER] Player " + victimId + " 被 " + killerId + " 杀死 (广播 DEAD)");
                         // 检查游戏结束
-                        System.out.println("[SERVER] KILL 请求但目标不存在或已死: " + victimId);
+                        int evilCount = 0;
+                        int goodCount = 0;
+
+                        System.out.println("[DEBUG] ===== 杀人后所有玩家状态检查 =====");
+                        for (PlayerInfo i : gameState.getPlayers()) {
+                            System.out.printf("[DEBUG] 玩家 %s | 类型=%s | 存活=%s\n",
+                                    i.getId(),
+                                    i.getType(),
+                                    i.isAlive() ? "ALIVE" : "DEAD");
+                            if (!i.isAlive()) continue; // 只统计存活的玩家
+                            if (i.getType() == Player.PlayerType.EVIL) {
+                                evilCount++;
+                            } else {
+                                goodCount++;
+                            }
+                        }
+
+                        if (evilCount == 0 || evilCount >= goodCount) {
+                            String message = (evilCount == 0) ? "坏人全部出局，好人胜利！" : "坏人数量 ≥ 好人数量，坏人胜利！";
+                            System.out.println(message);
+
+                            // 构造发送用的 Map<String,String>
+                            Map<String, String> gameOverPayload = new HashMap<>();
+                            gameOverPayload.put("message", message);
+
+                            // 收集所有被判定为坏人的玩家信息（无论活死都公布）
+                            List<Map<String, String>> evilPlayers = new ArrayList<>();
+                            for (PlayerInfo p : gameState.getPlayers()) {
+                                if (p.getType() == Player.PlayerType.EVIL) {
+                                    Map<String, String> info = new HashMap<>();
+                                    info.put("nick", p.getNick());
+                                    info.put("color", p.getColor());
+                                    evilPlayers.add(info);
+                                }
+                            }
+
+                            // 把列表转成 JSON 字符串放到 Map<String,String> 里（Message.build 需要 String）
+                            Gson gson = new Gson();
+                            gameOverPayload.put("evilPlayers", gson.toJson(evilPlayers));
+
+                            // 广播 GAME_OVER（注意使用 gameOverPayload）
+                            broadcastRaw(Message.build("GAME_OVER", gameOverPayload));
+                        }
                     }
                     break;
                 }
