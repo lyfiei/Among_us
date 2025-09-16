@@ -162,6 +162,7 @@ public class Player {
 
     // ----------------- 坏人杀人 -----------------
     public Player killNearbyPlayer(List<Player> allPlayers) {
+        System.out.println("开始判断杀人距离");
         long now = System.currentTimeMillis();
         if (this.type != PlayerType.EVIL) return null;
         if (!this.isAlive()) return null;
@@ -198,8 +199,6 @@ public class Player {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
-
                 return target;
             }
         }

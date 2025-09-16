@@ -34,7 +34,7 @@
                   <ImageView fx:id="characterView" fitHeight="150.0" fitWidth="110.0" layoutX="31.0" layoutY="96.0" pickOnBounds="true" preserveRatio="true" />
                   <Button layoutX="4.0" layoutY="160.0" mnemonicParsing="false" onAction="#onPrev" prefHeight="23.0" prefWidth="9.0" text="&lt;"
                           style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white;" />
-                  <Button layoutX="146.0" layoutY="160.0" mnemonicParsing="false" onAction="#onNext" prefHeight="23.0" prefWidth="9.0" text="&lt;"
+                  <Button layoutX="146.0" layoutY="160.0" mnemonicParsing="false" onAction="#onNext" prefHeight="23.0" prefWidth="9.0" text="&gt;"
                           style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white;" />
                   <Button layoutX="59.0" layoutY="259.0" mnemonicParsing="false" onAction="#onStart" text="开始游戏"
                           style="-fx-background-color: rgb(60,96,92); -fx-text-fill: white;" />

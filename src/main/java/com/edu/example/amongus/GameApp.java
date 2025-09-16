@@ -166,9 +166,8 @@ public class GameApp {
         actionUI = new PlayerActionUI(player, allPlayers, gamePane);
         this.killBtn = actionUI.getKillButton();
         Label roleLabel = actionUI.getRoleLabel();
-        // try connect server
         try {
-            this.client = new GameClient("192.168.43.124", 16789, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+            this.client = new GameClient("192.168.43.99", 16789, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
 
             player.setName(myId);
 
@@ -238,12 +237,24 @@ public class GameApp {
         chatPane.setLayoutY(40);
         chatPane.setVisible(false);
 
-        // report button
-        reportBtn = new Button("举报/开会");
-        reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(130));
-        // 添加这行代码来将按钮定位到底部
-       reportBtn.layoutYProperty().bind(gamePane.heightProperty().subtract(reportBtn.heightProperty().add(20)));
+        // 加载图片
+        Image reportImg = new Image(getClass().getResource("/com/edu/example/amongus/images/report.png").toExternalForm());
+        ImageView reportView = new ImageView(reportImg);
+        reportView.setFitWidth(100);   // 设置按钮宽度
+        reportView.setFitHeight(40);   // 设置按钮高度
+        reportView.setPreserveRatio(true); // 保持比例
 
+// 按钮使用图片
+        reportBtn = new Button();
+        reportBtn.setGraphic(reportView);
+        reportBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand;"); // 去掉背景，鼠标变成手形
+        reportBtn.setFocusTraversable(false);
+
+// 定位到右下角
+        reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(130));
+        reportBtn.layoutYProperty().bind(gamePane.heightProperty().subtract(reportBtn.heightProperty().add(20)));
+
+// 点击事件
         reportBtn.setOnAction(e -> {
             if (isEliminated) return; // 已淘汰不能举报/开会
             if (client != null && !inMeeting && !isEliminated) {
@@ -256,17 +267,15 @@ public class GameApp {
                     System.out.println("[DEBUG] Sent REPORT");
                 } catch (IOException ex) { ex.printStackTrace(); }
             }
-
         });
 
-// 鼠标按下/松开效果
+// 按下/松开效果
         DropShadow shadow = new DropShadow(10, Color.BLACK);
         reportBtn.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
             reportBtn.setScaleX(0.95);
             reportBtn.setScaleY(0.95);
             reportBtn.setEffect(shadow);
             reportBtn.setOpacity(0.8);
-
         });
 
         reportBtn.addEventHandler(MouseEvent.MOUSE_RELEASED, e -> {
@@ -274,11 +283,9 @@ public class GameApp {
             reportBtn.setScaleY(1.0);
             reportBtn.setEffect(null);
             reportBtn.setOpacity(1.0);
-
         });
 
-// 鼠标悬停效果（可选）
-
+// 悬停效果
         reportBtn.addEventHandler(MouseEvent.MOUSE_ENTERED, e -> reportBtn.setOpacity(0.9));
         reportBtn.addEventHandler(MouseEvent.MOUSE_EXITED, e -> reportBtn.setOpacity(1.0));
 
