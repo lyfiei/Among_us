@@ -56,6 +56,9 @@ import javafx.scene.media.MediaPlayer;
 
 import static javafx.application.Platform.*;
 import javafx.scene.input.KeyCode;
+
+import com.edu.example.amongus.ui.StartMenuController;
+import com.edu.example.amongus.ui.SettlementScreen;
 public class GameApp {
 
 
