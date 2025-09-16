@@ -74,9 +74,13 @@ public class PlayerActionUI {
             if (!parentPane.getChildren().contains(killButton)) parentPane.getChildren().add(killButton);
             if (!parentPane.getChildren().contains(roleLabel)) parentPane.getChildren().add(roleLabel);
 
-            // 按钮位置绑定到右下角
-            killButton.layoutXProperty().bind(parentPane.widthProperty().subtract(140));
-            killButton.layoutYProperty().bind(parentPane.heightProperty().subtract(60));
+            killButton.layoutXProperty().bind(parentPane.widthProperty().subtract(60));
+            killButton.layoutYProperty().bind(parentPane.heightProperty().subtract(60)); // 调整为比 reportBtn 高 20~30px
+
+//
+//            // 按钮位置绑定到右下角
+//            killButton.layoutXProperty().bind(parentPane.widthProperty().subtract(140));
+//            killButton.layoutYProperty().bind(parentPane.heightProperty().subtract(60));
 
             // 标签位置绑定到右上角
             roleLabel.layoutXProperty().bind(parentPane.widthProperty().subtract(120));
@@ -87,57 +91,6 @@ public class PlayerActionUI {
         });
     }
 
-    /** 初始化按钮和标签 */
-//    private void initializeUI() {
-//        // 创建杀人图片按钮
-//        Image killImage = new Image(getClass().getResource("/com/edu/example/amongus/images/kill.png").toExternalForm());
-//        ImageView killImageView = new ImageView(killImage);
-//
-//        // 设置图片大小
-//        killImageView.setFitWidth(80);
-//        killImageView.setFitHeight(80);
-//        killImageView.setPreserveRatio(true);
-//
-//        // 鼠标悬停效果
-//        killImageView.setOnMouseEntered(e -> killImageView.setOpacity(0.7));
-//        killImageView.setOnMouseExited(e -> killImageView.setOpacity(1.0));
-//
-//        // 点击事件
-//        killImageView.setOnMouseClicked(e -> {
-//            System.out.println("[DEBUG] 点击杀人按钮, 本地位置: (" + player.getX() + "," + player.getY() + ")");
-//            long remaining = player.getKillCooldownRemaining();
-//            if (remaining > 0) {
-//                System.out.println("[DEBUG] 冷却中，还要 " + remaining / 1000 + " 秒");
-//                return;
-//            }
-//
-//            if (player.killNearbyPlayer(allPlayers) != null) {
-//                System.out.println("[DEBUG] 杀人成功");
-//                updateKillButtonText(); // 如果要在图片上显示冷却文字，可以扩展这里
-//            } else {
-//                System.out.println("[DEBUG] 杀人失败，附近没有可杀玩家");
-//            }
-//        });
-//
-//        // 角色标签样式
-//        roleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
-//
-//        Platform.runLater(() -> {
-//            if (!parentPane.getChildren().contains(killImageView)) parentPane.getChildren().add(killImageView);
-//            if (!parentPane.getChildren().contains(roleLabel)) parentPane.getChildren().add(roleLabel);
-//
-//            // 图片按钮位置绑定到右下角
-//            killImageView.layoutXProperty().bind(parentPane.widthProperty().subtract(100));
-//            killImageView.layoutYProperty().bind(parentPane.heightProperty().subtract(100));
-//
-//            // 标签位置绑定到右上角
-//            roleLabel.layoutXProperty().bind(parentPane.widthProperty().subtract(120));
-//            roleLabel.setLayoutY(10);
-//
-//            killImageView.toFront();
-//            roleLabel.toFront();
-//        });
-//    }
 
     /** 冷却计时器 */
     private void startCooldownTimer() {
@@ -152,11 +105,21 @@ public class PlayerActionUI {
             if (player.getType() == Player.PlayerType.EVIL) {
                 long remaining = player.getKillCooldownRemaining();
                 if (remaining > 0) {
-                    killButton.setText("Kill (" + remaining/1000 + "s)");
+                    // 使用 CSS 让背景图片变暗
+                    killButton.setStyle(
+                            "-fx-background-image: url('/com/edu/example/amongus/images/kill.png');" +
+                                    "-fx-background-size: cover;" +
+                                    "-fx-opacity: 0.5;" // 半透明，看起来暗
+                    );
+                    //killButton.setText("Kill (" + remaining/1000 + "s)");
                     killButton.setDisable(true);
                 } else {
-                    killButton.setText("Kill");
                     killButton.setDisable(false);
+                    killButton.setStyle(
+                            "-fx-background-image: url('/com/edu/example/amongus/images/kill.png');" +
+                                    "-fx-background-size: cover;" +
+                                    "-fx-opacity: 1;"
+                    );
                 }
             }
         });

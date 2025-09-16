@@ -167,7 +167,7 @@ public class GameApp {
         this.killBtn = actionUI.getKillButton();
         Label roleLabel = actionUI.getRoleLabel();
         try {
-            this.client = new GameClient("192.168.43.99", 16789, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
+            this.client = new GameClient("192.168.43.124", 16789, parsed -> Platform.runLater(() -> handleNetworkMessage(parsed)));
 
             player.setName(myId);
 
@@ -240,8 +240,8 @@ public class GameApp {
         // 加载图片
         Image reportImg = new Image(getClass().getResource("/com/edu/example/amongus/images/report.png").toExternalForm());
         ImageView reportView = new ImageView(reportImg);
-        reportView.setFitWidth(100);   // 设置按钮宽度
-        reportView.setFitHeight(40);   // 设置按钮高度
+        reportView.setFitWidth(50);   // 设置按钮宽度
+        reportView.setFitHeight(50);   // 设置按钮高度
         reportView.setPreserveRatio(true); // 保持比例
 
 // 按钮使用图片
@@ -252,8 +252,7 @@ public class GameApp {
 
 // 定位到右下角
         reportBtn.layoutXProperty().bind(gamePane.widthProperty().subtract(130));
-        reportBtn.layoutYProperty().bind(gamePane.heightProperty().subtract(reportBtn.heightProperty().add(20)));
-
+        reportBtn.layoutYProperty().bind(gamePane.heightProperty().subtract(60));
 // 点击事件
         reportBtn.setOnAction(e -> {
             if (isEliminated) return; // 已淘汰不能举报/开会
@@ -837,14 +836,16 @@ public class GameApp {
                             }
 
                             // 根据消息判断是好人胜利还是失败
-                            boolean isVictory = msg.contains("好人"); // 假设消息里包含“好人”就是胜利
+                            boolean isVictory = msg.contains("好人胜利"); // 假设消息里包含“好人”就是胜利
 
                             // 选择正确的音频文件路径
                             String audioPath;
                             if (isVictory) {
-                                audioPath = getClass().getResource("/com/edu/example/amongus/audio/Crewmate_victory_music.mp3").toExternalForm();
+                                    audioPath = getClass().getResource("/com/edu/example/amongus/audio/Crewmate_victory_music.mp3").toExternalForm();
+
                             } else {
                                 audioPath = getClass().getResource("/com/edu/example/amongus/audio/Impostor_victory.mp3").toExternalForm();
+
                             }
 
                             // 创建 Media 和 MediaPlayer

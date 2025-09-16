@@ -33,9 +33,10 @@ public class SettlementScreen extends StackPane {
 
     public SettlementScreen(String message, List<Map<String, String>> evilPlayers) {
 
-        boolean isVictory = message.contains("胜利");
+        boolean isVictory = message.contains("好人胜利");
 
         // ========== 背景 ==========
+
         String backgroundPath = isVictory
                 ? "/com/edu/example/amongus/images/victory_background.jpg"
                 : "/com/edu/example/amongus/images/defeat_background.jpg";
